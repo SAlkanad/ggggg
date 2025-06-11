@@ -1,22 +1,8 @@
 import 'package:flutter/material.dart';
-import '../screens/auth/login_screen.dart';
-import '../screens/admin/admin_dashboard.dart';
-import '../screens/user/user_dashboard.dart';
-import '../screens/admin/client_form_screen.dart';
-import '../screens/user/user_client_form_screen.dart';
-import '../screens/admin/client_management_screen.dart';
-import '../screens/user/user_client_management_screen.dart';
-import '../screens/admin/user_management_screen.dart';
-import '../screens/admin/user_form_screen.dart';
-import '../screens/admin/user_clients_screen.dart';
-import '../screens/admin/admin_notifications_screen.dart';
-import '../screens/user/user_notifications_screen.dart';
-import '../screens/admin/admin_settings_screen.dart';
-import '../screens/user/user_settings_screen.dart';
-import '../models/client_model.dart'; // Import ClientModel
-import '../models/user_model.dart'; // Import UserModel
+import 'screens.dart';
+import 'models.dart';
 
-
+// routes/app_routes.dart
 class AppRoutes {
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -33,7 +19,7 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => ClientFormScreen());
       
       case '/admin/edit_client':
-        final client = settings.arguments as ClientModel?; // Explicit cast
+        final client = settings.arguments as ClientModel?;
         return MaterialPageRoute(
           builder: (_) => ClientFormScreen(client: client),
         );
@@ -48,13 +34,13 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => UserFormScreen());
       
       case '/admin/edit_user':
-        final user = settings.arguments as UserModel?; // Explicit cast
+        final user = settings.arguments as UserModel?;
         return MaterialPageRoute(
           builder: (_) => UserFormScreen(user: user),
         );
       
       case '/admin/user_clients':
-        final user = settings.arguments as UserModel; // Explicit cast (assuming it's never null here)
+        final user = settings.arguments as UserModel;
         return MaterialPageRoute(
           builder: (_) => UserClientsScreen(user: user),
         );
@@ -69,7 +55,7 @@ class AppRoutes {
         return MaterialPageRoute(builder: (_) => UserClientFormScreen());
       
       case '/user/edit_client':
-        final client = settings.arguments as ClientModel?; // Explicit cast
+        final client = settings.arguments as ClientModel?;
         return MaterialPageRoute(
           builder: (_) => UserClientFormScreen(client: client),
         );
@@ -82,6 +68,15 @@ class AppRoutes {
       
       case '/user/settings':
         return MaterialPageRoute(builder: (_) => UserSettingsScreen());
+      
+      case '/view_images':
+        final args = settings.arguments as Map<String, dynamic>;
+        return MaterialPageRoute(
+          builder: (_) => ImageViewer(
+            imageUrls: args['imageUrls'] as List<String>,
+            initialIndex: args['initialIndex'] as int? ?? 0,
+          ),
+        );
       
       default:
         return MaterialPageRoute(
