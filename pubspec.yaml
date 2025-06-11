@@ -27,7 +27,8 @@ dependencies:
 
   # Files & Storage
   path_provider: ^2.1.1
-  file_picker: ^6.1.1
+  file_picker: ^8.1.4
+  cross_file: ^0.3.4+2
 
   # Images & Media
   image_picker: ^1.0.4
@@ -57,3 +58,18 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  # Enable generation of localized Strings from arb files
+  generate: false
+
+  # Assets
+  # assets:
+  #   - images/
+
+  # Fonts
+  # fonts:
+  #   - family: Cairo
+  #     fonts:
+  #       - asset: fonts/Cairo-Regular.ttf
+  #       - asset: fonts/Cairo-Bold.ttf
+  #         weight: 700
