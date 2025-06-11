@@ -31,7 +31,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _loadSavedCredentials() async {
     final authController = Provider.of<AuthController>(context, listen: false);
     final credentials = await authController.getSavedCredentials();
-    
+
     if (credentials['username'] != null) {
       _usernameController.text = credentials['username']!;
     }
@@ -93,7 +93,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   SizedBox(height: 32),
-                  
+
                   CustomTextField(
                     controller: _usernameController,
                     label: 'اسم المستخدم',
@@ -102,7 +102,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     onChanged: (value) => _checkBiometricAvailability(),
                   ),
                   SizedBox(height: 16),
-                  
+
                   CustomTextField(
                     controller: _passwordController,
                     label: 'كلمة المرور',
@@ -121,7 +121,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     controlAffinity: ListTileControlAffinity.leading,
                   ),
                   SizedBox(height: 24),
-                  
+
                   SizedBox(
                     width: double.infinity,
                     height: 50,
@@ -162,15 +162,15 @@ class _LoginScreenState extends State<LoginScreen> {
           _usernameController.text,
           _passwordController.text,
         );
-        
+
         if (success) {
           final user = authController.currentUser!;
-          
+
           if (user.isFrozen) {
             _showFreezeDialog(user.freezeReason ?? 'تم تجميد الحساب');
             return;
           }
-          
+
           switch (user.role) {
             case UserRole.admin:
               Navigator.pushReplacementNamed(context, '/admin_dashboard');
@@ -193,7 +193,7 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final authController = Provider.of<AuthController>(context, listen: false);
       final success = await authController.loginWithBiometric(_usernameController.text);
-      
+
       if (success) {
         final user = authController.currentUser!;
         switch (user.role) {
@@ -359,20 +359,20 @@ class AdminDashboard extends StatelessWidget {
   void _syncData(BuildContext context) async {
     try {
       await StatusUpdateService.forceUpdateAllStatuses();
-      
+
       final authController = Provider.of<AuthController>(context, listen: false);
       if (authController.currentUser != null) {
         final clientController = Provider.of<ClientController>(context, listen: false);
         final userController = Provider.of<UserController>(context, listen: false);
         final notificationController = Provider.of<NotificationController>(context, listen: false);
-        
+
         await Future.wait([
           clientController.refreshClients(authController.currentUser!.id, isAdmin: true),
           userController.loadUsers(),
           notificationController.loadNotifications(authController.currentUser!.id, isAdmin: true),
         ]);
       }
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('تم تحديث البيانات بنجاح')),
       );
@@ -499,13 +499,13 @@ class UserDashboard extends StatelessWidget {
       if (authController.currentUser != null) {
         final clientController = Provider.of<ClientController>(context, listen: false);
         final notificationController = Provider.of<NotificationController>(context, listen: false);
-        
+
         await Future.wait([
           clientController.refreshClients(authController.currentUser!.id),
           notificationController.loadNotifications(authController.currentUser!.id),
         ]);
       }
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('تم تحديث البيانات بنجاح')),
       );
@@ -535,7 +535,7 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
   final _agentNameController = TextEditingController();
   final _agentPhoneController = TextEditingController();
   final _notesController = TextEditingController();
-  
+
   PhoneCountry _phoneCountry = PhoneCountry.saudi;
   VisaType _visaType = VisaType.umrah;
   DateTime _entryDate = DateTime.now();
@@ -548,7 +548,7 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
     if (widget.client != null) {
       _populateFields();
     }
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<SettingsController>(context, listen: false).loadAdminSettings();
     });
@@ -707,9 +707,9 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
                 child: _isLoading
                     ? CircularProgressIndicator(color: Colors.white)
                     : Text(
-                        widget.client == null ? 'حفظ العميل' : 'تحديث العميل',
-                        style: TextStyle(fontSize: 18),
-                      ),
+                  widget.client == null ? 'حفظ العميل' : 'تحديث العميل',
+                  style: TextStyle(fontSize: 18),
+                ),
               ),
             ],
           ),
@@ -802,7 +802,7 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
   Future<void> _pickImages() async {
     final ImagePicker picker = ImagePicker();
     final List<XFile>? images = await picker.pickMultiImage();
-    
+
     if (images != null) {
       setState(() {
         _selectedImages.addAll(images.map((xfile) => File(xfile.path)));
@@ -813,18 +813,18 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
   Future<void> _handleSave() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
-      
+
       try {
         final authController = Provider.of<AuthController>(context, listen: false);
         final clientController = Provider.of<ClientController>(context, listen: false);
         final settingsController = Provider.of<SettingsController>(context, listen: false);
-        
+
         final settings = settingsController.adminSettings;
         final statusSettings = settings['clientStatusSettings'] ?? {};
         final greenDays = statusSettings['greenDays'] ?? 30;
         final yellowDays = statusSettings['yellowDays'] ?? 30;
         final redDays = statusSettings['redDays'] ?? 1;
-        
+
         final client = ClientModel(
           id: widget.client?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
           clientName: _clientNameController.text,
@@ -854,7 +854,7 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
         } else {
           await clientController.updateClient(client, _selectedImages);
         }
-        
+
         Navigator.pop(context, true);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('تم حفظ العميل بنجاح')),
@@ -935,12 +935,12 @@ class _ClientManagementScreenState extends State<ClientManagementScreen> {
                     prefixIcon: Icon(Icons.search),
                     suffixIcon: _searchController.text.isNotEmpty
                         ? IconButton(
-                            icon: Icon(Icons.clear),
-                            onPressed: () {
-                              _searchController.clear();
-                              clientController.clearSearch();
-                            },
-                          )
+                      icon: Icon(Icons.clear),
+                      onPressed: () {
+                        _searchController.clear();
+                        clientController.clearSearch();
+                      },
+                    )
                         : null,
                     border: OutlineInputBorder(),
                   ),
@@ -951,26 +951,26 @@ class _ClientManagementScreenState extends State<ClientManagementScreen> {
                 child: clientController.isLoading
                     ? Center(child: CircularProgressIndicator())
                     : clientController.clients.isEmpty
-                        ? Center(child: Text('لا توجد عملاء مسجلون'))
-                        : ListView.builder(
-                            itemCount: clientController.clients.length,
-                            itemBuilder: (context, index) {
-                              final client = clientController.clients[index];
-                              return ClientCard(
-                                client: client,
-                                onEdit: () => Navigator.pushNamed(
-                                  context,
-                                  '/admin/edit_client',
-                                  arguments: client,
-                                ),
-                                onDelete: () => _deleteClient(clientController, client.id),
-                                onStatusChange: (status) => _updateStatus(clientController, client.id, status),
-                                onViewImages: client.imageUrls.isNotEmpty
-                                    ? () => _viewImages(client.imageUrls)
-                                    : null,
-                              );
-                            },
-                          ),
+                    ? Center(child: Text('لا توجد عملاء مسجلون'))
+                    : ListView.builder(
+                  itemCount: clientController.clients.length,
+                  itemBuilder: (context, index) {
+                    final client = clientController.clients[index];
+                    return ClientCard(
+                      client: client,
+                      onEdit: () => Navigator.pushNamed(
+                        context,
+                        '/admin/edit_client',
+                        arguments: client,
+                      ),
+                      onDelete: () => _deleteClient(clientController, client.id),
+                      onStatusChange: (status) => _updateStatus(clientController, client.id, status),
+                      onViewImages: client.imageUrls.isNotEmpty
+                          ? () => _viewImages(client.imageUrls)
+                          : null,
+                    );
+                  },
+                ),
               ),
             ],
           );
@@ -980,7 +980,6 @@ class _ClientManagementScreenState extends State<ClientManagementScreen> {
   }
 
   void _showFilterBottomSheet() {
-    // Placeholder for filter functionality
     showModalBottomSheet(
       context: context,
       builder: (context) => Container(
@@ -1119,12 +1118,12 @@ class _UserClientManagementScreenState extends State<UserClientManagementScreen>
                     prefixIcon: Icon(Icons.search),
                     suffixIcon: _searchController.text.isNotEmpty
                         ? IconButton(
-                            icon: Icon(Icons.clear),
-                            onPressed: () {
-                              _searchController.clear();
-                              clientController.clearSearch();
-                            },
-                          )
+                      icon: Icon(Icons.clear),
+                      onPressed: () {
+                        _searchController.clear();
+                        clientController.clearSearch();
+                      },
+                    )
                         : null,
                     border: OutlineInputBorder(),
                   ),
@@ -1135,26 +1134,26 @@ class _UserClientManagementScreenState extends State<UserClientManagementScreen>
                 child: clientController.isLoading
                     ? Center(child: CircularProgressIndicator())
                     : clientController.clients.isEmpty
-                        ? Center(child: Text('لا توجد عملاء مسجلون'))
-                        : ListView.builder(
-                            itemCount: clientController.clients.length,
-                            itemBuilder: (context, index) {
-                              final client = clientController.clients[index];
-                              return ClientCard(
-                                client: client,
-                                onEdit: () => Navigator.pushNamed(
-                                  context,
-                                  '/user/edit_client',
-                                  arguments: client,
-                                ),
-                                onDelete: () => _deleteClient(clientController, client.id),
-                                onStatusChange: (status) => _updateStatus(clientController, client.id, status),
-                                onViewImages: client.imageUrls.isNotEmpty
-                                    ? () => _viewImages(client.imageUrls)
-                                    : null,
-                              );
-                            },
-                          ),
+                    ? Center(child: Text('لا توجد عملاء مسجلون'))
+                    : ListView.builder(
+                  itemCount: clientController.clients.length,
+                  itemBuilder: (context, index) {
+                    final client = clientController.clients[index];
+                    return ClientCard(
+                      client: client,
+                      onEdit: () => Navigator.pushNamed(
+                        context,
+                        '/user/edit_client',
+                        arguments: client,
+                      ),
+                      onDelete: () => _deleteClient(clientController, client.id),
+                      onStatusChange: (status) => _updateStatus(clientController, client.id, status),
+                      onViewImages: client.imageUrls.isNotEmpty
+                          ? () => _viewImages(client.imageUrls)
+                          : null,
+                    );
+                  },
+                ),
               ),
             ],
           );
@@ -1360,7 +1359,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
   void _freezeUserDialog(UserController controller, UserModel user) {
     final reasonController = TextEditingController();
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1423,7 +1422,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
   void _setValidationDialog(UserController controller, UserModel user) {
     DateTime selectedDate = user.validationEndDate ?? DateTime.now().add(Duration(days: 30));
-    
+
     showDialog(
       context: context,
       builder: (context) => StatefulBuilder(
@@ -1489,7 +1488,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
   void _sendUserNotificationDialog(UserController controller, UserModel user) {
     final messageController = TextEditingController();
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1539,7 +1538,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
 
   void _sendNotificationDialog() {
     final messageController = TextEditingController();
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1599,7 +1598,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
-  
+
   UserRole _role = UserRole.user;
   DateTime _validationEndDate = DateTime.now().add(Duration(days: 30));
   bool _isActive = true;
@@ -1743,9 +1742,9 @@ class _UserFormScreenState extends State<UserFormScreen> {
                 child: _isLoading
                     ? CircularProgressIndicator(color: Colors.white)
                     : Text(
-                        widget.user == null ? 'إنشاء المستخدم' : 'تحديث المستخدم',
-                        style: TextStyle(fontSize: 18),
-                      ),
+                  widget.user == null ? 'إنشاء المستخدم' : 'تحديث المستخدم',
+                  style: TextStyle(fontSize: 18),
+                ),
               ),
             ],
           ),
@@ -1769,13 +1768,13 @@ class _UserFormScreenState extends State<UserFormScreen> {
   Future<void> _handleSave() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
-      
+
       try {
         final authController = Provider.of<AuthController>(context, listen: false);
         final userController = Provider.of<UserController>(context, listen: false);
-        
+
         String hashedPassword = widget.user?.password ?? _hashPassword(_passwordController.text);
-        
+
         final user = UserModel(
           id: widget.user?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
           username: _usernameController.text,
@@ -1795,7 +1794,7 @@ class _UserFormScreenState extends State<UserFormScreen> {
         } else {
           await userController.updateUser(user);
         }
-        
+
         Navigator.pop(context, true);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('تم حفظ المستخدم بنجاح')),
@@ -1849,7 +1848,7 @@ class _UserClientsScreenState extends State<UserClientsScreen> {
 
   Future<void> _loadUserClients() async {
     setState(() => _isLoading = true);
-    
+
     try {
       final userController = Provider.of<UserController>(context, listen: false);
       _clients = await userController.getUserClients(widget.user.id);
@@ -1877,28 +1876,28 @@ class _UserClientsScreenState extends State<UserClientsScreen> {
       body: _isLoading
           ? Center(child: CircularProgressIndicator())
           : _clients.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.people_outline, size: 64, color: Colors.grey),
-                      SizedBox(height: 16),
-                      Text('لا توجد عملاء لهذا المستخدم', style: TextStyle(fontSize: 18, color: Colors.grey)),
-                    ],
-                  ),
-                )
-              : ListView.builder(
-                  itemCount: _clients.length,
-                  itemBuilder: (context, index) {
-                    final client = _clients[index];
-                    return ClientCard(
-                      client: client,
-                      onViewImages: client.imageUrls.isNotEmpty
-                          ? () => _viewImages(client.imageUrls)
-                          : null,
-                    );
-                  },
-                ),
+          ? Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.people_outline, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text('لا توجد عملاء لهذا المستخدم', style: TextStyle(fontSize: 18, color: Colors.grey)),
+          ],
+        ),
+      )
+          : ListView.builder(
+        itemCount: _clients.length,
+        itemBuilder: (context, index) {
+          final client = _clients[index];
+          return ClientCard(
+            client: client,
+            onViewImages: client.imageUrls.isNotEmpty
+                ? () => _viewImages(client.imageUrls)
+                : null,
+          );
+        },
+      ),
     );
   }
 
@@ -2062,11 +2061,11 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> wit
 
   void _sendWhatsAppToClient(NotificationModel notification) async {
     if (notification.clientId == null) return;
-    
+
     try {
       final clientController = Provider.of<ClientController>(context, listen: false);
       final client = clientController.clients.firstWhere((c) => c.id == notification.clientId);
-      
+
       await Provider.of<NotificationController>(context, listen: false)
           .sendWhatsAppToClient(client, notification.message);
     } catch (e) {
@@ -2078,11 +2077,11 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> wit
 
   void _callClient(NotificationModel notification) async {
     if (notification.clientId == null) return;
-    
+
     try {
       final clientController = Provider.of<ClientController>(context, listen: false);
       final client = clientController.clients.firstWhere((c) => c.id == notification.clientId);
-      
+
       await Provider.of<NotificationController>(context, listen: false)
           .callClient(client);
     } catch (e) {
@@ -2096,7 +2095,7 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> wit
     try {
       final userController = Provider.of<UserController>(context, listen: false);
       final user = userController.users.firstWhere((u) => u.id == notification.targetUserId);
-      
+
       await Provider.of<NotificationController>(context, listen: false)
           .sendWhatsAppToUser(user, notification.message);
     } catch (e) {
@@ -2201,11 +2200,11 @@ class _UserNotificationsScreenState extends State<UserNotificationsScreen> {
 
   void _sendWhatsAppToClient(NotificationModel notification) async {
     if (notification.clientId == null) return;
-    
+
     try {
       final clientController = Provider.of<ClientController>(context, listen: false);
       final client = clientController.clients.firstWhere((c) => c.id == notification.clientId);
-      
+
       await Provider.of<NotificationController>(context, listen: false)
           .sendWhatsAppToClient(client, notification.message);
     } catch (e) {
@@ -2217,11 +2216,11 @@ class _UserNotificationsScreenState extends State<UserNotificationsScreen> {
 
   void _callClient(NotificationModel notification) async {
     if (notification.clientId == null) return;
-    
+
     try {
       final clientController = Provider.of<ClientController>(context, listen: false);
       final client = clientController.clients.firstWhere((c) => c.id == notification.clientId);
-      
+
       await Provider.of<NotificationController>(context, listen: false)
           .callClient(client);
     } catch (e) {
@@ -2232,7 +2231,7 @@ class _UserNotificationsScreenState extends State<UserNotificationsScreen> {
   }
 }
 
-// screens/admin/admin_settings_screen.dart
+// screens/admin/admin_settings_screen.dart - Enhanced Version
 class AdminSettingsScreen extends StatefulWidget {
   @override
   State<AdminSettingsScreen> createState() => _AdminSettingsScreenState();
@@ -2240,13 +2239,11 @@ class AdminSettingsScreen extends StatefulWidget {
 
 class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
   final _formKey = GlobalKey<FormState>();
-  
-  // Status Settings Controllers
+
   final _greenDaysController = TextEditingController();
   final _yellowDaysController = TextEditingController();
   final _redDaysController = TextEditingController();
-  
-  // Client Notification Controllers
+
   final _clientTier1DaysController = TextEditingController();
   final _clientTier1FreqController = TextEditingController();
   final _clientTier1MessageController = TextEditingController();
@@ -2256,8 +2253,7 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
   final _clientTier3DaysController = TextEditingController();
   final _clientTier3FreqController = TextEditingController();
   final _clientTier3MessageController = TextEditingController();
-  
-  // User Notification Controllers
+
   final _userTier1DaysController = TextEditingController();
   final _userTier1FreqController = TextEditingController();
   final _userTier1MessageController = TextEditingController();
@@ -2267,16 +2263,20 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
   final _userTier3DaysController = TextEditingController();
   final _userTier3FreqController = TextEditingController();
   final _userTier3MessageController = TextEditingController();
-  
-  // WhatsApp Message Controllers
+
   final _clientWhatsappController = TextEditingController();
   final _userWhatsappController = TextEditingController();
+
+  bool _showOnlyMyClients = false;
+  bool _showOnlyMyNotifications = false;
+  bool _biometricEnabled = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _loadSettings();
+      _checkBiometricStatus();
     });
   }
 
@@ -2286,55 +2286,62 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
     _populateFields();
   }
 
+  Future<void> _checkBiometricStatus() async {
+    final authController = Provider.of<AuthController>(context, listen: false);
+    setState(() {
+      _biometricEnabled = authController.biometricEnabled;
+    });
+  }
+
   void _populateFields() {
     final settings = Provider.of<SettingsController>(context, listen: false).adminSettings;
-    
-    // Status Settings
+
     final statusSettings = settings['clientStatusSettings'] ?? {};
     _greenDaysController.text = (statusSettings['greenDays'] ?? 30).toString();
     _yellowDaysController.text = (statusSettings['yellowDays'] ?? 30).toString();
     _redDaysController.text = (statusSettings['redDays'] ?? 1).toString();
-    
-    // Client Notification Settings
+
     final clientSettings = settings['clientNotificationSettings'] ?? {};
     final clientTier1 = clientSettings['firstTier'] ?? {};
     final clientTier2 = clientSettings['secondTier'] ?? {};
     final clientTier3 = clientSettings['thirdTier'] ?? {};
-    
+
     _clientTier1DaysController.text = (clientTier1['days'] ?? 10).toString();
     _clientTier1FreqController.text = (clientTier1['frequency'] ?? 2).toString();
     _clientTier1MessageController.text = clientTier1['message'] ?? 'تنبيه: تنتهي تأشيرة العميل {clientName} خلال 10 أيام';
-    
+
     _clientTier2DaysController.text = (clientTier2['days'] ?? 5).toString();
     _clientTier2FreqController.text = (clientTier2['frequency'] ?? 4).toString();
     _clientTier2MessageController.text = clientTier2['message'] ?? 'تحذير: تنتهي تأشيرة العميل {clientName} خلال 5 أيام';
-    
+
     _clientTier3DaysController.text = (clientTier3['days'] ?? 2).toString();
     _clientTier3FreqController.text = (clientTier3['frequency'] ?? 8).toString();
     _clientTier3MessageController.text = clientTier3['message'] ?? 'عاجل: تنتهي تأشيرة العميل {clientName} خلال يومين';
-    
-    // User Notification Settings
+
     final userSettings = settings['userNotificationSettings'] ?? {};
     final userTier1 = userSettings['firstTier'] ?? {};
     final userTier2 = userSettings['secondTier'] ?? {};
     final userTier3 = userSettings['thirdTier'] ?? {};
-    
+
     _userTier1DaysController.text = (userTier1['days'] ?? 10).toString();
     _userTier1FreqController.text = (userTier1['frequency'] ?? 1).toString();
     _userTier1MessageController.text = userTier1['message'] ?? 'تنبيه: ينتهي حسابك خلال 10 أيام';
-    
+
     _userTier2DaysController.text = (userTier2['days'] ?? 5).toString();
     _userTier2FreqController.text = (userTier2['frequency'] ?? 1).toString();
     _userTier2MessageController.text = userTier2['message'] ?? 'تحذير: ينتهي حسابك خلال 5 أيام';
-    
+
     _userTier3DaysController.text = (userTier3['days'] ?? 2).toString();
     _userTier3FreqController.text = (userTier3['frequency'] ?? 1).toString();
     _userTier3MessageController.text = userTier3['message'] ?? 'عاجل: ينتهي حسابك خلال يومين';
-    
-    // WhatsApp Messages
+
     final whatsappMessages = settings['whatsappMessages'] ?? {};
     _clientWhatsappController.text = whatsappMessages['clientMessage'] ?? 'عزيزي العميل {clientName}، تنتهي صلاحية تأشيرتك قريباً.';
     _userWhatsappController.text = whatsappMessages['userMessage'] ?? 'تنبيه: ينتهي حسابك قريباً. يرجى التجديد.';
+
+    final adminFilters = settings['adminFilters'] ?? {};
+    _showOnlyMyClients = adminFilters['showOnlyMyClients'] ?? false;
+    _showOnlyMyNotifications = adminFilters['showOnlyMyNotifications'] ?? false;
   }
 
   @override
@@ -2362,6 +2369,10 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  _buildBiometricCard(),
+                  SizedBox(height: 16),
+                  _buildAdminFiltersCard(),
+                  SizedBox(height: 16),
                   _buildStatusSettingsCard(),
                   SizedBox(height: 16),
                   _buildClientNotificationCard(),
@@ -2374,9 +2385,10 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
                     onPressed: _saveSettings,
                     style: ElevatedButton.styleFrom(
                       padding: EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 3,
                     ),
-                    child: Text('حفظ جميع الإعدادات', style: TextStyle(fontSize: 18)),
+                    child: Text('حفظ جميع الإعدادات', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
@@ -2387,418 +2399,131 @@ class _AdminSettingsScreenState extends State<AdminSettingsScreen> {
     );
   }
 
-  Widget _buildStatusSettingsCard() {
+  Widget _buildBiometricCard() {
     return Card(
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('إعدادات حالة العملاء', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: CustomTextField(
-                    controller: _greenDaysController,
-                    label: 'أيام الحالة الخضراء',
-                    keyboardType: TextInputType.number,
-                    validator: (value) => value == null || value.isEmpty ? 'مطلوب' : null,
-                  ),
-                ),
-                SizedBox(width: 8),
-                Expanded(
-                  child: CustomTextField(
-                    controller: _yellowDaysController,
-                    label: 'أيام الحالة الصفراء',
-                    keyboardType: TextInputType.number,
-                    validator: (value) => value == null || value.isEmpty ? 'مطلوب' : null,
-                  ),
-                ),
-                SizedBox(width: 8),
-                Expanded(
-                  child: CustomTextField(
-                    controller: _redDaysController,
-                    label: 'أيام الحالة الحمراء',
-                    keyboardType: TextInputType.number,
-                    validator: (value) => value == null || value.isEmpty ? 'مطلوب' : null,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildClientNotificationCard() {
-    return Card(
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('إعدادات إشعارات العملاء', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            SizedBox(height: 16),
-            _buildNotificationTier('المستوى الأول', _clientTier1DaysController, _clientTier1FreqController, _clientTier1MessageController),
-            SizedBox(height: 16),
-            _buildNotificationTier('المستوى الثاني', _clientTier2DaysController, _clientTier2FreqController, _clientTier2MessageController),
-            SizedBox(height: 16),
-            _buildNotificationTier('المستوى الثالث', _clientTier3DaysController, _clientTier3FreqController, _clientTier3MessageController),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildUserNotificationCard() {
-    return Card(
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('إعدادات إشعارات المستخدمين', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            SizedBox(height: 16),
-            _buildNotificationTier('المستوى الأول', _userTier1DaysController, _userTier1FreqController, _userTier1MessageController),
-            SizedBox(height: 16),
-            _buildNotificationTier('المستوى الثاني', _userTier2DaysController, _userTier2FreqController, _userTier2MessageController),
-            SizedBox(height: 16),
-            _buildNotificationTier('المستوى الثالث', _userTier3DaysController, _userTier3FreqController, _userTier3MessageController),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNotificationTier(String title, TextEditingController daysController, TextEditingController freqController, TextEditingController messageController) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: TextStyle(fontWeight: FontWeight.bold)),
-        SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: CustomTextField(
-                controller: daysController,
-                label: 'الأيام',
-                keyboardType: TextInputType.number,
-                validator: (value) => value == null || value.isEmpty ? 'مطلوب' : null,
-              ),
-            ),
-            SizedBox(width: 8),
-            Expanded(
-              child: CustomTextField(
-                controller: freqController,
-                label: 'التكرار يومياً',
-                keyboardType: TextInputType.number,
-                validator: (value) => value == null || value.isEmpty ? 'مطلوب' : null,
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: 8),
-        CustomTextField(
-          controller: messageController,
-          label: 'نص الرسالة',
-          maxLines: 2,
-          validator: (value) => value == null || value.isEmpty ? 'مطلوب' : null,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildWhatsappMessagesCard() {
-    return Card(
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('رسائل الواتساب الافتراضية', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            SizedBox(height: 16),
-            CustomTextField(
-              controller: _clientWhatsappController,
-              label: 'رسالة العملاء',
-              maxLines: 3,
-              validator: (value) => value == null || value.isEmpty ? 'مطلوب' : null,
-            ),
-            SizedBox(height: 16),
-            CustomTextField(
-              controller: _userWhatsappController,
-              label: 'رسالة المستخدمين',
-              maxLines: 3,
-              validator: (value) => value == null || value.isEmpty ? 'مطلوب' : null,
-            ),
-            SizedBox(height: 8),
-            Text(
-              'يمكن استخدام {clientName} أو {userName} في الرسائل',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _saveSettings() async {
-    if (_formKey.currentState!.validate()) {
-      try {
-        final settingsController = Provider.of<SettingsController>(context, listen: false);
-        
-        final settings = {
-          'clientStatusSettings': {
-            'greenDays': int.parse(_greenDaysController.text),
-            'yellowDays': int.parse(_yellowDaysController.text),
-            'redDays': int.parse(_redDaysController.text),
-          },
-          'clientNotificationSettings': {
-            'firstTier': {
-              'days': int.parse(_clientTier1DaysController.text),
-              'frequency': int.parse(_clientTier1FreqController.text),
-              'message': _clientTier1MessageController.text,
-            },
-            'secondTier': {
-              'days': int.parse(_clientTier2DaysController.text),
-              'frequency': int.parse(_clientTier2FreqController.text),
-              'message': _clientTier2MessageController.text,
-            },
-            'thirdTier': {
-              'days': int.parse(_clientTier3DaysController.text),
-              'frequency': int.parse(_clientTier3FreqController.text),
-              'message': _clientTier3MessageController.text,
-            },
-          },
-          'userNotificationSettings': {
-            'firstTier': {
-              'days': int.parse(_userTier1DaysController.text),
-              'frequency': int.parse(_userTier1FreqController.text),
-              'message': _userTier1MessageController.text,
-            },
-            'secondTier': {
-              'days': int.parse(_userTier2DaysController.text),
-              'frequency': int.parse(_userTier2FreqController.text),
-              'message': _userTier2MessageController.text,
-            },
-            'thirdTier': {
-              'days': int.parse(_userTier3DaysController.text),
-              'frequency': int.parse(_userTier3FreqController.text),
-              'message': _userTier3MessageController.text,
-            },
-          },
-          'whatsappMessages': {
-            'clientMessage': _clientWhatsappController.text,
-            'userMessage': _userWhatsappController.text,
-          },
-        };
-
-        await settingsController.updateAdminSettings(settings);
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('تم حفظ الإعدادات بنجاح')),
-        );
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطأ في حفظ الإعدادات: ${e.toString()}')),
-        );
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    _greenDaysController.dispose();
-    _yellowDaysController.dispose();
-    _redDaysController.dispose();
-    _clientTier1DaysController.dispose();
-    _clientTier1FreqController.dispose();
-    _clientTier1MessageController.dispose();
-    _clientTier2DaysController.dispose();
-    _clientTier2FreqController.dispose();
-    _clientTier2MessageController.dispose();
-    _clientTier3DaysController.dispose();
-    _clientTier3FreqController.dispose();
-    _clientTier3MessageController.dispose();
-    _userTier1DaysController.dispose();
-    _userTier1FreqController.dispose();
-    _userTier1MessageController.dispose();
-    _userTier2DaysController.dispose();
-    _userTier2FreqController.dispose();
-    _userTier2MessageController.dispose();
-    _userTier3DaysController.dispose();
-    _userTier3FreqController.dispose();
-    _userTier3MessageController.dispose();
-    _clientWhatsappController.dispose();
-    _userWhatsappController.dispose();
-    super.dispose();
-  }
-}
-
-// screens/user/user_settings_screen.dart
-class UserSettingsScreen extends StatefulWidget {
-  @override
-  State<UserSettingsScreen> createState() => _UserSettingsScreenState();
-}
-
-class _UserSettingsScreenState extends State<UserSettingsScreen> {
-  final _formKey = GlobalKey<FormState>();
-  
-  // Status Settings Controllers
-  final _greenDaysController = TextEditingController();
-  final _yellowDaysController = TextEditingController();
-  final _redDaysController = TextEditingController();
-  
-  // Notification Controllers
-  final _tier1DaysController = TextEditingController();
-  final _tier1FreqController = TextEditingController();
-  final _tier1MessageController = TextEditingController();
-  final _tier2DaysController = TextEditingController();
-  final _tier2FreqController = TextEditingController();
-  final _tier2MessageController = TextEditingController();
-  final _tier3DaysController = TextEditingController();
-  final _tier3FreqController = TextEditingController();
-  final _tier3MessageController = TextEditingController();
-  
-  // WhatsApp Message Controller
-  final _whatsappMessageController = TextEditingController();
-  
-  // Profile Settings
-  bool _notificationsEnabled = true;
-  bool _whatsappEnabled = true;
-  bool _autoScheduleEnabled = true;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadSettings();
-    });
-  }
-
-  Future<void> _loadSettings() async {
-    final authController = Provider.of<AuthController>(context, listen: false);
-    final settingsController = Provider.of<SettingsController>(context, listen: false);
-    await settingsController.loadUserSettings(authController.currentUser!.id);
-    _populateFields();
-  }
-
-  void _populateFields() {
-    final settings = Provider.of<SettingsController>(context, listen: false).userSettings;
-    
-    // Status Settings
-    final statusSettings = settings['clientStatusSettings'] ?? {};
-    _greenDaysController.text = (statusSettings['greenDays'] ?? 30).toString();
-    _yellowDaysController.text = (statusSettings['yellowDays'] ?? 30).toString();
-    _redDaysController.text = (statusSettings['redDays'] ?? 1).toString();
-    
-    // Notification Settings
-    final notificationSettings = settings['notificationSettings'] ?? {};
-    final tier1 = notificationSettings['firstTier'] ?? {};
-    final tier2 = notificationSettings['secondTier'] ?? {};
-    final tier3 = notificationSettings['thirdTier'] ?? {};
-    
-    _tier1DaysController.text = (tier1['days'] ?? 10).toString();
-    _tier1FreqController.text = (tier1['frequency'] ?? 2).toString();
-    _tier1MessageController.text = tier1['message'] ?? 'تنبيه: تنتهي تأشيرة العميل {clientName} خلال 10 أيام';
-    
-    _tier2DaysController.text = (tier2['days'] ?? 5).toString();
-    _tier2FreqController.text = (tier2['frequency'] ?? 4).toString();
-    _tier2MessageController.text = tier2['message'] ?? 'تحذير: تنتهي تأشيرة العميل {clientName} خلال 5 أيام';
-    
-    _tier3DaysController.text = (tier3['days'] ?? 2).toString();
-    _tier3FreqController.text = (tier3['frequency'] ?? 8).toString();
-    _tier3MessageController.text = tier3['message'] ?? 'عاجل: تنتهي تأشيرة العميل {clientName} خلال يومين';
-    
-    // WhatsApp Message
-    _whatsappMessageController.text = settings['whatsappMessage'] ?? 'عزيزي العميل {clientName}، تنتهي صلاحية تأشيرتك قريباً.';
-    
-    // Profile Settings
-    final profile = settings['profile'] ?? {};
-    _notificationsEnabled = profile['notifications'] ?? true;
-    _whatsappEnabled = profile['whatsapp'] ?? true;
-    _autoScheduleEnabled = profile['autoSchedule'] ?? true;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('الإعدادات'),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.save),
-            onPressed: _saveSettings,
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(15),
+          gradient: LinearGradient(
+            colors: [Colors.blue.shade50, Colors.white],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
           ),
-        ],
-      ),
-      body: Consumer<SettingsController>(
-        builder: (context, settingsController, child) {
-          if (settingsController.isLoading) {
-            return Center(child: CircularProgressIndicator());
-          }
-
-          return Form(
-            key: _formKey,
-            child: SingleChildScrollView(
-              padding: EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  _buildProfileSettingsCard(),
-                  SizedBox(height: 16),
-                  _buildStatusSettingsCard(),
-                  SizedBox(height: 16),
-                  _buildNotificationCard(),
-                  SizedBox(height: 16),
-                  _buildWhatsappMessageCard(),
-                  SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: _saveSettings,
-                    style: ElevatedButton.styleFrom(
-                      padding: EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                    child: Text('حفظ الإعدادات', style: TextStyle(fontSize: 18)),
-                  ),
+                  Icon(Icons.fingerprint, color: Colors.blue, size: 28),
+                  SizedBox(width: 12),
+                  Text('المصادقة البيومترية', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blue.shade800)),
                 ],
               ),
-            ),
-          );
-        },
+              SizedBox(height: 16),
+              SwitchListTile(
+                title: Text('تفعيل بصمة الإصبع', style: TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: Text('استخدم بصمة الإصبع لتسجيل الدخول السريع'),
+                value: _biometricEnabled,
+                onChanged: (value) async {
+                  final authController = Provider.of<AuthController>(context, listen: false);
+                  if (value) {
+                    final isAvailable = await authController.checkBiometricAvailability();
+                    if (isAvailable) {
+                      await authController.enableBiometric();
+                      setState(() => _biometricEnabled = true);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('تم تفعيل المصادقة ببصمة الإصبع')),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('بصمة الإصبع غير متاحة على هذا الجهاز')),
+                      );
+                    }
+                  } else {
+                    await authController.disableBiometric();
+                    setState(() => _biometricEnabled = false);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('تم إلغاء تفعيل المصادقة ببصمة الإصبع')),
+                    );
+                  }
+                },
+                secondary: Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(Icons.security, color: Colors.blue),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildProfileSettingsCard() {
+  Widget _buildAdminFiltersCard() {
     return Card(
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('إعدادات الملف الشخصي', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            SizedBox(height: 16),
-            SwitchListTile(
-              title: Text('تفعيل الإشعارات'),
-              subtitle: Text('استقبال إشعارات انتهاء التأشيرات'),
-              value: _notificationsEnabled,
-              onChanged: (value) => setState(() => _notificationsEnabled = value),
-            ),
-            SwitchListTile(
-              title: Text('تفعيل الواتساب'),
-              subtitle: Text('إمكانية إرسال رسائل واتساب'),
-              value: _whatsappEnabled,
-              onChanged: (value) => setState(() => _whatsappEnabled = value),
-            ),
-            SwitchListTile(
-              title: Text('الجدولة التلقائية'),
-              subtitle: Text('جدولة الإشعارات تلقائياً'),
-              value: _autoScheduleEnabled,
-              onChanged: (value) => setState(() => _autoScheduleEnabled = value),
-            ),
-          ],
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(15),
+          gradient: LinearGradient(
+            colors: [Colors.purple.shade50, Colors.white],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.admin_panel_settings, color: Colors.purple, size: 28),
+                  SizedBox(width: 12),
+                  Text('مرشحات المدير', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.purple.shade800)),
+                ],
+              ),
+              SizedBox(height: 16),
+              SwitchListTile(
+                title: Text('عرض عملائي فقط', style: TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: Text('إظهار العملاء المضافين من قبلي فقط'),
+                value: _showOnlyMyClients,
+                onChanged: (value) => setState(() => _showOnlyMyClients = value),
+                secondary: Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.purple.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(Icons.people, color: Colors.purple),
+                ),
+              ),
+              SwitchListTile(
+                title: Text('عرض إشعاراتي فقط', style: TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: Text('إظهار الإشعارات المتعلقة بعملائي فقط'),
+                value: _showOnlyMyNotifications,
+                onChanged: (value) => setState(() => _showOnlyMyNotifications = value),
+                secondary: Container(
+                  padding: EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.purple.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(Icons.notifications, color: Colors.purple),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -2806,43 +2531,78 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
 
   Widget _buildStatusSettingsCard() {
     return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(15),
+          gradient: LinearGradient(
+            colors: [Colors.green.shade50, Colors.white],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.timeline, color: Colors.green, size: 28),
+                  SizedBox(width: 12),
+                  Text('إعدادات حالة العملاء', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green.shade800)),
+                ],
+              ),
+              SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildStatusField(_greenDaysController, 'أيام الحالة الخضراء', Colors.green, Icons.check_circle),
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: _buildStatusField(_yellowDaysController, 'أيام الحالة الصفراء', Colors.orange, Icons.warning),
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: _buildStatusField(_redDaysController, 'أيام الحالة الحمراء', Colors.red, Icons.error),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusField(TextEditingController controller, String label, Color color, IconData icon) {
+    return Container(
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
       child: Padding(
-        padding: EdgeInsets.all(16),
+        padding: EdgeInsets.all(12),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('إعدادات حالة العملاء', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: CustomTextField(
-                    controller: _greenDaysController,
-                    label: 'أيام الحالة الخضراء',
-                    keyboardType: TextInputType.number,
-                    validator: (value) => value == null || value.isEmpty ? 'مطلوب' : null,
-                  ),
-                ),
-                SizedBox(width: 8),
-                Expanded(
-                  child: CustomTextField(
-                    controller: _yellowDaysController,
-                    label: 'أيام الحالة الصفراء',
-                    keyboardType: TextInputType.number,
-                    validator: (value) => value == null || value.isEmpty ? 'مطلوب' : null,
-                  ),
-                ),
-                SizedBox(width: 8),
-                Expanded(
-                  child: CustomTextField(
-                    controller: _redDaysController,
-                    label: 'أيام الحالة الحمراء',
-                    keyboardType: TextInputType.number,
-                    validator: (value) => value == null || value.isEmpty ? 'مطلوب' : null,
-                  ),
-                ),
-              ],
+            Icon(icon, color: color, size: 24),
+            SizedBox(height: 8),
+            TextFormField(
+              controller: controller,
+              keyboardType: TextInputType.number,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontWeight: FontWeight.bold, color: color),
+              decoration: InputDecoration(
+                border: InputBorder.none,
+                hintText: '0',
+                hintStyle: TextStyle(color: color.withOpacity(0.5)),
+              ),
+              validator: (value) => value == null || value.isEmpty ? 'مطلوب' : null,
             ),
+            Text(label, style: TextStyle(fontSize: 10, color: color, fontWeight: FontWeight.w600), textAlign: TextAlign.center),
           ],
         ),
       ),
@@ -2851,83 +2611,160 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
 
   Widget _buildNotificationCard() {
     return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(15),
+          gradient: LinearGradient(
+            colors: [Colors.orange.shade50, Colors.white],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.notifications_active, color: Colors.orange, size: 28),
+                  SizedBox(width: 12),
+                  Text('إعدادات الإشعارات', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.orange.shade800)),
+                ],
+              ),
+              SizedBox(height: 16),
+              _buildNotificationTier('المستوى الأول', _tier1DaysController, _tier1FreqController, _tier1MessageController, Colors.green),
+              SizedBox(height: 16),
+              _buildNotificationTier('المستوى الثاني', _tier2DaysController, _tier2FreqController, _tier2MessageController, Colors.orange),
+              SizedBox(height: 16),
+              _buildNotificationTier('المستوى الثالث', _tier3DaysController, _tier3FreqController, _tier3MessageController, Colors.red),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNotificationTier(String title, TextEditingController daysController, TextEditingController freqController, TextEditingController messageController, Color color) {
+    return Container(
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
       child: Padding(
         padding: EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('إعدادات الإشعارات', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            SizedBox(height: 16),
-            _buildNotificationTier('المستوى الأول', _tier1DaysController, _tier1FreqController, _tier1MessageController),
-            SizedBox(height: 16),
-            _buildNotificationTier('المستوى الثاني', _tier2DaysController, _tier2FreqController, _tier2MessageController),
-            SizedBox(height: 16),
-            _buildNotificationTier('المستوى الثالث', _tier3DaysController, _tier3FreqController, _tier3MessageController),
+            Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 16)),
+            SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    controller: daysController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: 'الأيام',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      prefixIcon: Icon(Icons.schedule, color: color),
+                    ),
+                    validator: (value) => value == null || value.isEmpty ? 'مطلوب' : null,
+                  ),
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: TextFormField(
+                    controller: freqController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: 'التكرار يومياً',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      prefixIcon: Icon(Icons.repeat, color: color),
+                    ),
+                    validator: (value) => value == null || value.isEmpty ? 'مطلوب' : null,
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 12),
+            TextFormField(
+              controller: messageController,
+              maxLines: 2,
+              decoration: InputDecoration(
+                labelText: 'نص الرسالة',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                prefixIcon: Icon(Icons.message, color: color),
+              ),
+              validator: (value) => value == null || value.isEmpty ? 'مطلوب' : null,
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildNotificationTier(String title, TextEditingController daysController, TextEditingController freqController, TextEditingController messageController) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: TextStyle(fontWeight: FontWeight.bold)),
-        SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: CustomTextField(
-                controller: daysController,
-                label: 'الأيام',
-                keyboardType: TextInputType.number,
-                validator: (value) => value == null || value.isEmpty ? 'مطلوب' : null,
-              ),
-            ),
-            SizedBox(width: 8),
-            Expanded(
-              child: CustomTextField(
-                controller: freqController,
-                label: 'التكرار يومياً',
-                keyboardType: TextInputType.number,
-                validator: (value) => value == null || value.isEmpty ? 'مطلوب' : null,
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: 8),
-        CustomTextField(
-          controller: messageController,
-          label: 'نص الرسالة',
-          maxLines: 2,
-          validator: (value) => value == null || value.isEmpty ? 'مطلوب' : null,
-        ),
-      ],
-    );
-  }
-
   Widget _buildWhatsappMessageCard() {
     return Card(
-      child: Padding(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('رسالة الواتساب الافتراضية', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            SizedBox(height: 16),
-            CustomTextField(
-              controller: _whatsappMessageController,
-              label: 'نص الرسالة',
-              maxLines: 3,
-              validator: (value) => value == null || value.isEmpty ? 'مطلوب' : null,
-            ),
-            SizedBox(height: 8),
-            Text(
-              'يمكن استخدام {clientName} في الرسالة',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-          ],
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(15),
+          gradient: LinearGradient(
+            colors: [Colors.green.shade50, Colors.white],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.chat, color: Colors.green, size: 28),
+                  SizedBox(width: 12),
+                  Text('رسالة الواتساب الافتراضية', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.green.shade800)),
+                ],
+              ),
+              SizedBox(height: 16),
+              TextFormField(
+                controller: _whatsappMessageController,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  labelText: 'نص الرسالة',
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                  prefixIcon: Icon(Icons.message, color: Colors.green),
+                ),
+                validator: (value) => value == null || value.isEmpty ? 'مطلوب' : null,
+              ),
+              SizedBox(height: 12),
+              Container(
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.info, color: Colors.blue, size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'يمكن استخدام {clientName} في الرسالة',
+                        style: TextStyle(fontSize: 12, color: Colors.blue.shade700),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -2938,7 +2775,7 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
       try {
         final authController = Provider.of<AuthController>(context, listen: false);
         final settingsController = Provider.of<SettingsController>(context, listen: false);
-        
+
         final settings = {
           'clientStatusSettings': {
             'greenDays': int.parse(_greenDaysController.text),
@@ -2967,17 +2804,36 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
             'notifications': _notificationsEnabled,
             'whatsapp': _whatsappEnabled,
             'autoSchedule': _autoScheduleEnabled,
+            'biometric': _biometricEnabled,
           },
         };
 
         await settingsController.updateUserSettings(authController.currentUser!.id, settings);
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('تم حفظ الإعدادات بنجاح')),
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 8),
+                Text('تم حفظ الإعدادات بنجاح'),
+              ],
+            ),
+            backgroundColor: Colors.green,
+          ),
         );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطأ في حفظ الإعدادات: ${e.toString()}')),
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.error, color: Colors.white),
+                SizedBox(width: 8),
+                Text('خطأ في حفظ الإعدادات: ${e.toString()}'),
+              ],
+            ),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -3002,105 +2858,732 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
   }
 }
 
-// Placeholder widget for NotificationDropdown - needs to be implemented
-class NotificationDropdown extends StatelessWidget {
-  final List<NotificationModel> notifications;
-  final Function(String) onMarkAsRead;
-  final VoidCallback onViewAll;
+// Additional Widget Implementations
 
-  const NotificationDropdown({
+// Enhanced Client Card with improved functionality
+class EnhancedClientCard extends StatelessWidget {
+  final ClientModel client;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
+  final Function(ClientStatus)? onStatusChange;
+  final VoidCallback? onViewImages;
+  final String? createdByName;
+  final bool showActions;
+
+  const EnhancedClientCard({
     Key? key,
-    required this.notifications,
-    required this.onMarkAsRead,
-    required this.onViewAll,
+    required this.client,
+    this.onEdit,
+    this.onDelete,
+    this.onStatusChange,
+    this.onViewImages,
+    this.createdByName,
+    this.showActions = true,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return PopupMenuButton<String>(
-      icon: Stack(
-        children: [
-          Icon(Icons.notifications),
-          if (notifications.isNotEmpty)
-            Positioned(
-              right: 0,
-              top: 0,
-              child: Container(
-                padding: EdgeInsets.all(2),
-                decoration: BoxDecoration(
-                  color: Colors.red,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                constraints: BoxConstraints(
-                  minWidth: 12,
-                  minHeight: 12,
-                ),
-                child: Text(
-                  '${notifications.length}',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 8,
+    return Card(
+      margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: LinearGradient(
+            colors: [
+              _getStatusGradientColor().withOpacity(0.05),
+              Colors.white,
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                client.clientName,
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey.shade800,
+                                ),
+                              ),
+                            ),
+                            StatusCard(
+                              status: client.status,
+                              daysRemaining: client.daysRemaining,
+                            ),
+                          ],
+                        ),
+                        if (createdByName != null) ...[
+                          SizedBox(height: 8),
+                          Container(
+                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.blue.shade200),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.person, size: 12, color: Colors.blue.shade700),
+                                SizedBox(width: 4),
+                                Text(
+                                  'بواسطة: $createdByName',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.blue.shade700,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
-                  textAlign: TextAlign.center,
+                ],
+              ),
+
+              SizedBox(height: 12),
+
+              // Client Information Grid
+              _buildInfoGrid(),
+
+              if (client.imageUrls.isNotEmpty) ...[
+                SizedBox(height: 12),
+                _buildImageSection(),
+              ],
+
+              if (showActions) ...[
+                SizedBox(height: 16),
+                _buildActionButtons(context),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInfoGrid() {
+    return Column(
+      children: [
+        if (client.clientPhone.isNotEmpty)
+          _buildInfoRow(Icons.phone, 'الهاتف', client.clientPhone),
+
+        if (client.secondPhone != null && client.secondPhone!.isNotEmpty)
+          _buildInfoRow(Icons.phone_android, 'هاتف إضافي', client.secondPhone!),
+
+        _buildInfoRow(Icons.card_membership, 'نوع التأشيرة', _getVisaTypeText(client.visaType)),
+
+        _buildInfoRow(Icons.calendar_today, 'تاريخ الدخول', formatArabicDate(client.entryDate)),
+
+        if (client.agentName != null && client.agentName!.isNotEmpty)
+          _buildInfoRow(Icons.support_agent, 'الوكيل', client.agentName!),
+
+        if (client.notes.isNotEmpty)
+          _buildInfoRow(Icons.note, 'ملاحظات', client.notes, maxLines: 2),
+      ],
+    );
+  }
+
+  Widget _buildInfoRow(IconData icon, String label, String value, {int maxLines = 1}) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade100,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(icon, size: 16, color: Colors.grey.shade600),
+          ),
+          SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
+                SizedBox(height: 2),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey.shade800,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: maxLines,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImageSection() {
+    return Container(
+      padding: EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.image, size: 20, color: Colors.grey.shade600),
+          SizedBox(width: 8),
+          Text(
+            '${client.imageUrls.length} صورة مرفقة',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey.shade700,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          Spacer(),
+          if (onViewImages != null)
+            TextButton.icon(
+              onPressed: onViewImages,
+              icon: Icon(Icons.visibility, size: 16),
+              label: Text('عرض'),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.blue,
+                minimumSize: Size(0, 32),
               ),
             ),
         ],
       ),
-      itemBuilder: (context) {
-        if (notifications.isEmpty) {
-          return [
-            PopupMenuItem<String>(
-              value: 'empty',
-              child: Text('لا توجد إشعارات جديدة'),
-            ),
-          ];
-        }
+    );
+  }
 
-        final items = notifications.take(5).map((notification) {
-          return PopupMenuItem<String>(
-            value: notification.id,
-            child: Container(
-              width: 250,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    notification.title,
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    notification.message,
-                    style: TextStyle(fontSize: 12),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
+  Widget _buildActionButtons(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: Colors.grey.shade200)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          if (!client.hasExited && client.clientPhone.isNotEmpty) ...[
+            _buildActionButton(
+              icon: Icons.message,
+              label: 'واتساب',
+              color: Colors.green,
+              onPressed: () => _sendWhatsApp(context),
+            ),
+            _buildActionButton(
+              icon: Icons.call,
+              label: 'اتصال',
+              color: Colors.blue,
+              onPressed: () => _makeCall(client.clientPhone),
+            ),
+          ],
+
+          if (onEdit != null)
+            _buildActionButton(
+              icon: Icons.edit,
+              label: 'تعديل',
+              color: Colors.orange,
+              onPressed: onEdit!,
+            ),
+
+          if (onStatusChange != null && !client.hasExited)
+            _buildActionButton(
+              icon: Icons.exit_to_app,
+              label: 'خرج',
+              color: Colors.grey,
+              onPressed: () => onStatusChange!(ClientStatus.white),
+            ),
+
+          if (onDelete != null)
+            _buildActionButton(
+              icon: Icons.delete,
+              label: 'حذف',
+              color: Colors.red,
+              onPressed: () => _confirmDelete(context),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 20),
+            SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
               ),
             ),
-          );
-        }).toList();
+          ],
+        ),
+      ),
+    );
+  }
 
-        if (notifications.length > 5) {
-          items.add(
-            PopupMenuItem<String>(
-              value: 'view_all',
-              child: Text('عرض جميع الإشعارات'),
+  Color _getStatusGradientColor() {
+    switch (client.status) {
+      case ClientStatus.green:
+        return Colors.green;
+      case ClientStatus.yellow:
+        return Colors.orange;
+      case ClientStatus.red:
+        return Colors.red;
+      case ClientStatus.white:
+        return Colors.grey;
+    }
+  }
+
+  String _getVisaTypeText(VisaType type) {
+    switch (type) {
+      case VisaType.visit:
+        return 'زيارة';
+      case VisaType.work:
+        return 'عمل';
+      case VisaType.umrah:
+        return 'عمرة';
+      case VisaType.hajj:
+        return 'حج';
+    }
+  }
+
+  void _sendWhatsApp(BuildContext context) async {
+    try {
+      await WhatsAppService.sendClientMessage(
+        phoneNumber: client.clientPhone,
+        country: client.phoneCountry,
+        message: 'عزيزي العميل {clientName}، تنتهي صلاحية تأشيرتك قريباً.',
+        clientName: client.clientName,
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('خطأ في فتح الواتساب: ${e.toString()}')),
+      );
+    }
+  }
+
+  void _makeCall(String phoneNumber) async {
+    try {
+      await WhatsAppService.callClient(
+        phoneNumber: phoneNumber,
+        country: client.phoneCountry,
+      );
+    } catch (e) {
+      // Handle silently
+    }
+  }
+
+  void _confirmDelete(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(Icons.warning, color: Colors.red),
+            SizedBox(width: 8),
+            Text('تأكيد الحذف'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('هل أنت متأكد من حذف العميل؟'),
+            SizedBox(height: 8),
+            Text(
+              client.clientName,
+              style: TextStyle(fontWeight: FontWeight.bold),
             ),
-          );
-        }
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              onDelete?.call();
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: Text('حذف', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-        return items;
-      },
-      onSelected: (value) {
-        if (value == 'view_all') {
-          onViewAll();
-        } else if (value != 'empty') {
-          onMarkAsRead(value);
-        }
-      },
+// Enhanced Notification Card with better UI
+class EnhancedNotificationCard extends StatelessWidget {
+  final NotificationModel notification;
+  final VoidCallback? onMarkAsRead;
+  final VoidCallback? onWhatsApp;
+  final VoidCallback? onCall;
+  final VoidCallback? onDismiss;
+
+  const EnhancedNotificationCard({
+    Key? key,
+    required this.notification,
+    this.onMarkAsRead,
+    this.onWhatsApp,
+    this.onCall,
+    this.onDismiss,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Dismissible(
+      key: Key(notification.id),
+      direction: DismissDirection.endToStart,
+      onDismissed: (direction) => onDismiss?.call(),
+      background: Container(
+        alignment: Alignment.centerRight,
+        padding: EdgeInsets.only(right: 20),
+        color: Colors.red,
+        child: Icon(Icons.delete, color: Colors.white),
+      ),
+      child: Card(
+        margin: EdgeInsets.symmetric(vertical: 4, horizontal: 16),
+        elevation: notification.isRead ? 1 : 4,
+        color: notification.isRead ? Colors.grey.shade50 : Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+            color: _getPriorityColor().withOpacity(0.3),
+            width: notification.isRead ? 0.5 : 2,
+          ),
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: _getPriorityColor().withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      _getNotificationIcon(),
+                      color: _getPriorityColor(),
+                      size: 20,
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          notification.title,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: notification.isRead ? Colors.grey.shade600 : Colors.black,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Container(
+                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: _getPriorityColor().withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                _getPriorityText(),
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: _getPriorityColor(),
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 8),
+                            Icon(Icons.access_time, size: 12, color: Colors.grey),
+                            SizedBox(width: 4),
+                            Text(
+                              formatTimeAgo(notification.createdAt),
+                              style: TextStyle(fontSize: 12, color: Colors.grey),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (!notification.isRead)
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: _getPriorityColor(),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                ],
+              ),
+
+              SizedBox(height: 12),
+
+              Text(
+                notification.message,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: notification.isRead ? Colors.grey.shade600 : Colors.black87,
+                  height: 1.4,
+                ),
+              ),
+
+              SizedBox(height: 16),
+
+              Row(
+                children: [
+                  if (onWhatsApp != null)
+                    _buildActionButton(
+                      icon: Icons.message,
+                      label: 'واتساب',
+                      color: Colors.green,
+                      onPressed: onWhatsApp!,
+                    ),
+
+                  if (onCall != null) ...[
+                    if (onWhatsApp != null) SizedBox(width: 8),
+                    _buildActionButton(
+                      icon: Icons.call,
+                      label: 'اتصال',
+                      color: Colors.blue,
+                      onPressed: onCall!,
+                    ),
+                  ],
+
+                  Spacer(),
+
+                  if (!notification.isRead && onMarkAsRead != null)
+                    _buildActionButton(
+                      icon: Icons.mark_email_read,
+                      label: 'مقروء',
+                      color: Colors.orange,
+                      onPressed: onMarkAsRead!,
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 16),
+            SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  IconData _getNotificationIcon() {
+    switch (notification.type) {
+      case NotificationType.clientExpiring:
+        return Icons.person_off;
+      case NotificationType.userValidationExpiring:
+        return Icons.account_circle_outlined;
+    }
+  }
+
+  Color _getPriorityColor() {
+    switch (notification.priority) {
+      case NotificationPriority.high:
+        return Colors.red;
+      case NotificationPriority.medium:
+        return Colors.orange;
+      case NotificationPriority.low:
+        return Colors.green;
+    }
+  }
+
+  String _getPriorityText() {
+    switch (notification.priority) {
+      case NotificationPriority.high:
+        return 'عاجل';
+      case NotificationPriority.medium:
+        return 'متوسط';
+      case NotificationPriority.low:
+        return 'عادي';
+    }
+  }
+}
+
+// Dashboard Statistics Widget
+class DashboardStatsCard extends StatelessWidget {
+  final String title;
+  final String value;
+  final IconData icon;
+  final Color color;
+  final String? subtitle;
+  final VoidCallback? onTap;
+
+  const DashboardStatsCard({
+    Key? key,
+    required this.title,
+    required this.value,
+    required this.icon,
+    required this.color,
+    this.subtitle,
+    this.onTap,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            gradient: LinearGradient(
+              colors: [color.withOpacity(0.1), Colors.white],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: color.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(icon, color: color, size: 24),
+                  ),
+                  Spacer(),
+                  if (onTap != null)
+                    Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
+                ],
+              ),
+              SizedBox(height: 16),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+              SizedBox(height: 4),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade700,
+                ),
+              ),
+              if (subtitle != null) ...[
+                SizedBox(height: 4),
+                Text(
+                  subtitle!,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade500,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
