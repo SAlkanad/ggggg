@@ -12,6 +12,7 @@ import 'core.dart';
 import 'services.dart';
 import 'app_initialization_service.dart';
 import 'error_handler.dart';
+import 'network_utils.dart';
 
 void main() async {
   // Ensure Flutter binding is initialized
@@ -36,16 +37,16 @@ void main() async {
   try {
     // Initialize the app using the initialization service
     await AppInitializationService.initialize();
-    
+
     print('✅ App initialization completed successfully');
-    
+
     // Run the app
     runApp(PassengersApp());
-    
+
   } catch (error, stackTrace) {
     print('❌ Critical initialization error: $error');
     print('Stack trace: $stackTrace');
-    
+
     // Run a minimal error app
     runApp(ErrorApp(error: error));
   }
@@ -78,10 +79,10 @@ class PassengersApp extends StatelessWidget {
           return MaterialApp(
             title: AppConstants.appName,
             debugShowCheckedModeBanner: false,
-            
+
             // Theme Configuration
             theme: AppTheme.lightTheme,
-            
+
             // Localization
             locale: Locale('ar', 'SA'),
             supportedLocales: [
@@ -93,7 +94,7 @@ class PassengersApp extends StatelessWidget {
               GlobalWidgetsLocalizations.delegate,
               GlobalCupertinoLocalizations.delegate,
             ],
-            
+
             // Text direction for RTL
             builder: (context, child) {
               return Directionality(
@@ -101,20 +102,17 @@ class PassengersApp extends StatelessWidget {
                 child: child ?? Container(),
               );
             },
-            
+
             // Navigation
             initialRoute: _getInitialRoute(authController),
             onGenerateRoute: AppRoutes.generateRoute,
-            
+
             // Error handling
             onUnknownRoute: (settings) {
               return MaterialPageRoute(
                 builder: (context) => NotFoundScreen(),
               );
             },
-            
-            // Global scaffold messenger for snackbars
-            scaffoldMessengerKey: GlobalKey<ScaffoldMessengerState>(),
           );
         },
       ),
@@ -263,7 +261,7 @@ class NotFoundScreen extends StatelessWidget {
                   Navigator.pushNamedAndRemoveUntil(
                     context,
                     RouteConstants.login,
-                    (route) => false,
+                        (route) => false,
                   );
                 },
                 icon: Icon(Icons.home),
@@ -282,7 +280,7 @@ class AppLifecycleObserver extends WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    
+
     switch (state) {
       case AppLifecycleState.resumed:
         print('📱 App resumed');
@@ -290,23 +288,24 @@ class AppLifecycleObserver extends WidgetsBindingObserver {
         StatusUpdateService.startAutoStatusUpdate();
         BackgroundService.startBackgroundTasks();
         break;
-        
+
       case AppLifecycleState.paused:
         print('📱 App paused');
         // App is in background
         break;
-        
+
       case AppLifecycleState.detached:
         print('📱 App detached');
         // Clean up resources
         StatusUpdateService.stopAutoStatusUpdate();
         BackgroundService.stopBackgroundTasks();
+        NetworkUtils.dispose();
         break;
-        
+
       case AppLifecycleState.inactive:
         print('📱 App inactive');
         break;
-        
+
       case AppLifecycleState.hidden:
         print('📱 App hidden');
         break;

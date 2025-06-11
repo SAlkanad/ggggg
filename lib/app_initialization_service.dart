@@ -8,6 +8,7 @@ import 'package:timezone/timezone.dart' as tz;
 import 'package:permission_handler/permission_handler.dart';
 import 'services.dart';
 import 'firebase_options.dart';
+import 'network_utils.dart';
 
 class AppInitializationService {
   static final FlutterLocalNotificationsPlugin _localNotifications =
@@ -23,6 +24,9 @@ class AppInitializationService {
 
       // Initialize timezone
       tz.initializeTimeZones();
+
+      // Initialize network monitoring
+      await _initializeNetworkMonitoring();
 
       // Request permissions
       await _requestPermissions();
@@ -78,6 +82,11 @@ class AppInitializationService {
   static void _onNotificationTapped(NotificationResponse response) {
     print('Notification tapped: ${response.payload}');
     // Handle notification tap
+  }
+
+  static Future<void> _initializeNetworkMonitoring() async {
+    await NetworkUtils.initialize();
+    print('✅ Network monitoring initialized');
   }
 
   static Future<void> _requestPermissions() async {
@@ -163,7 +172,7 @@ class AppInitializationService {
       iOS: iosDetails,
     );
 
-    // Fixed timezone scheduling
+    // Fixed timezone scheduling - removed deprecated parameter
     final scheduledTZ = tz.TZDateTime.from(scheduledDate, tz.local);
 
     await _localNotifications.zonedSchedule(
@@ -173,8 +182,6 @@ class AppInitializationService {
       scheduledTZ,
       notificationDetails,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation:
-      UILocalNotificationDateInterpretation.absoluteTime,
       payload: payload,
     );
   }

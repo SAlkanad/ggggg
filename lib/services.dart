@@ -605,7 +605,7 @@ class ImageService {
   // FIXED: Properly handle the return type from FlutterImageCompress
   static Future<File> _compressImage(File file) async {
     try {
-      final String targetPath = '${file.parent.path}/compressed_${file.path.split('/').last}';
+      final String targetPath = '${file.parent.path}/compressed_${file.uri.pathSegments.last}';
 
       final XFile? result = await FlutterImageCompress.compressAndGetFile(
         file.absolute.path,
@@ -618,6 +618,7 @@ class ImageService {
       if (result != null) {
         return File(result.path);
       } else {
+        print('Image compression returned null, using original file');
         return file; // Return original if compression failed
       }
     } catch (e) {

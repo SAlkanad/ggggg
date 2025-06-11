@@ -8,7 +8,7 @@ import 'error_handler.dart';
 
 class NetworkUtils {
   static final Connectivity _connectivity = Connectivity();
-  static StreamSubscription<ConnectivityResult>? _connectivitySubscription;
+  static StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   static bool _hasConnection = true;
   static final StreamController<bool> _connectionController = StreamController<bool>.broadcast();
 
@@ -40,16 +40,18 @@ class NetworkUtils {
   static void dispose() {
     _connectivitySubscription?.cancel();
     _connectivitySubscription = null;
-    _connectionController.close();
+    if (!_connectionController.isClosed) {
+      _connectionController.close();
+    }
   }
 
   /// Check internet connection with actual network test
   static Future<bool> checkInternetConnection() async {
     try {
       // First check connectivity status
-      final connectivityResult = await _connectivity.checkConnectivity();
+      final connectivityResults = await _connectivity.checkConnectivity();
 
-      if (connectivityResult == ConnectivityResult.none) {
+      if (connectivityResults.contains(ConnectivityResult.none)) {
         _updateConnectionStatus(false);
         return false;
       }
@@ -98,10 +100,10 @@ class NetworkUtils {
   }
 
   /// Handle connectivity changes
-  static void _onConnectivityChanged(ConnectivityResult result) async {
-    print('📶 Connectivity changed: $result');
+  static void _onConnectivityChanged(List<ConnectivityResult> results) async {
+    print('📶 Connectivity changed: $results');
 
-    if (result == ConnectivityResult.none) {
+    if (results.contains(ConnectivityResult.none)) {
       _updateConnectionStatus(false);
     } else {
       // Delay to allow network to stabilize
@@ -114,24 +116,32 @@ class NetworkUtils {
   static void _updateConnectionStatus(bool hasConnection) {
     if (_hasConnection != hasConnection) {
       _hasConnection = hasConnection;
-      _connectionController.add(hasConnection);
+      if (!_connectionController.isClosed) {
+        _connectionController.add(hasConnection);
+      }
 
       print(hasConnection ? '✅ Internet connected' : '❌ Internet disconnected');
     }
   }
 
   /// Get current connectivity type
-  static Future<ConnectivityResult> getConnectivityType() async {
+  static Future<List<ConnectivityResult>> getConnectivityType() async {
     try {
       return await _connectivity.checkConnectivity();
     } catch (e) {
-      return ConnectivityResult.none;
+      return [ConnectivityResult.none];
     }
   }
 
   /// Get connectivity type as Arabic string
   static Future<String> getConnectivityTypeText() async {
-    final type = await getConnectivityType();
+    final types = await getConnectivityType();
+    if (types.isEmpty || types.contains(ConnectivityResult.none)) {
+      return 'غير متصل';
+    }
+
+    // Return the first connection type
+    final type = types.first;
     switch (type) {
       case ConnectivityResult.wifi:
         return 'واي فاي';
