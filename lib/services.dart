@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:crypto/crypto.dart';
+import 'package:cross_file/cross_file.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
@@ -18,7 +19,7 @@ class AuthService {
   static Future<UserModel> login(String username, String password) async {
     try {
       final hashedPassword = _hashPassword(password);
-      
+
       final querySnapshot = await _firestore
           .collection(FirebaseConstants.usersCollection)
           .where('username', isEqualTo: username)
@@ -56,7 +57,7 @@ class AuthService {
 
   static Future<void> saveCredentials(String username, String password, bool rememberMe) async {
     final prefs = await SharedPreferences.getInstance();
-    
+
     if (rememberMe) {
       await prefs.setString('saved_username', username);
       await prefs.setString('saved_password', password);
@@ -89,7 +90,7 @@ class AuthService {
         final credentials = await getSavedCredentials();
         final username = credentials['username'];
         final password = credentials['password'];
-        
+
         if (username != null && password != null) {
           return await login(username, password);
         }
@@ -109,6 +110,50 @@ class AuthService {
     var bytes = utf8.encode(password);
     var digest = sha256.convert(bytes);
     return digest.toString();
+  }
+
+  // Add method to create default admin
+  static Future<void> createDefaultAdmin() async {
+    try {
+      // Check if admin already exists
+      final querySnapshot = await _firestore
+          .collection(FirebaseConstants.usersCollection)
+          .where('role', isEqualTo: 'admin')
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        // Create default admin user
+        final adminUser = UserModel(
+          id: 'admin_${DateTime.now().millisecondsSinceEpoch}',
+          username: 'admin',
+          password: _hashPassword('admin123'), // Change this password!
+          role: UserRole.admin,
+          name: 'مدير النظام',
+          phone: '966500000000',
+          email: 'admin@example.com',
+          isActive: true,
+          isFrozen: false,
+          validationEndDate: DateTime.now().add(Duration(days: 365 * 10)), // 10 years
+          createdAt: DateTime.now(),
+          createdBy: 'system',
+        );
+
+        await _firestore
+            .collection(FirebaseConstants.usersCollection)
+            .doc(adminUser.id)
+            .set(adminUser.toMap());
+
+        print('✅ Default admin user created');
+        print('Username: admin');
+        print('Password: admin123');
+        print('⚠️  Please change the password after first login!');
+      } else {
+        print('👤 Admin user already exists');
+      }
+    } catch (e) {
+      print('❌ Error creating admin user: $e');
+    }
   }
 }
 
@@ -148,10 +193,10 @@ class DatabaseService {
 
       return querySnapshot.docs
           .map((doc) {
-            final data = doc.data();
-            data['id'] = doc.id;
-            return ClientModel.fromMap(data);
-          })
+        final data = doc.data();
+        data['id'] = doc.id;
+        return ClientModel.fromMap(data);
+      })
           .toList();
     } catch (e) {
       throw Exception('خطأ في جلب العملاء: ${e.toString()}');
@@ -167,10 +212,10 @@ class DatabaseService {
 
       return querySnapshot.docs
           .map((doc) {
-            final data = doc.data();
-            data['id'] = doc.id;
-            return ClientModel.fromMap(data);
-          })
+        final data = doc.data();
+        data['id'] = doc.id;
+        return ClientModel.fromMap(data);
+      })
           .toList();
     } catch (e) {
       throw Exception('خطأ في جلب العملاء: ${e.toString()}');
@@ -180,7 +225,7 @@ class DatabaseService {
   static Future<List<ClientModel>> searchClients(String userId, String searchTerm, {bool isAdmin = false}) async {
     try {
       List<ClientModel> allClients;
-      
+
       if (isAdmin) {
         allClients = await getAllClients();
       } else {
@@ -196,10 +241,10 @@ class DatabaseService {
         final phone = client.clientPhone;
         final secondPhone = client.secondPhone ?? '';
         final searchLower = searchTerm.toLowerCase();
-        
-        return name.contains(searchLower) || 
-               phone.contains(searchTerm) || 
-               secondPhone.contains(searchTerm);
+
+        return name.contains(searchLower) ||
+            phone.contains(searchTerm) ||
+            secondPhone.contains(searchTerm);
       }).toList();
     } catch (e) {
       throw Exception('خطأ في البحث: ${e.toString()}');
@@ -224,10 +269,10 @@ class DatabaseService {
   }
 
   static Future<void> updateClientWithStatus(
-    String clientId,
-    ClientStatus status,
-    int daysRemaining
-  ) async {
+      String clientId,
+      ClientStatus status,
+      int daysRemaining
+      ) async {
     try {
       await _firestore
           .collection(FirebaseConstants.clientsCollection)
@@ -250,11 +295,11 @@ class DatabaseService {
           .collection(FirebaseConstants.clientsCollection)
           .doc(clientId)
           .get();
-      
+
       if (clientDoc.exists) {
         final clientData = clientDoc.data()!;
         final imageUrls = List<String>.from(clientData['imageUrls'] ?? []);
-        
+
         // Delete images from storage
         for (String imageUrl in imageUrls) {
           try {
@@ -296,10 +341,10 @@ class DatabaseService {
 
       return querySnapshot.docs
           .map((doc) {
-            final data = doc.data();
-            data['id'] = doc.id;
-            return UserModel.fromMap(data);
-          })
+        final data = doc.data();
+        data['id'] = doc.id;
+        return UserModel.fromMap(data);
+      })
           .toList();
     } catch (e) {
       throw Exception('خطأ في جلب المستخدمين: ${e.toString()}');
@@ -380,10 +425,10 @@ class DatabaseService {
 
       return querySnapshot.docs
           .map((doc) {
-            final data = doc.data();
-            data['id'] = doc.id;
-            return NotificationModel.fromMap(data);
-          })
+        final data = doc.data();
+        data['id'] = doc.id;
+        return NotificationModel.fromMap(data);
+      })
           .toList();
     } catch (e) {
       throw Exception('خطأ في جلب الإشعارات: ${e.toString()}');
@@ -399,10 +444,10 @@ class DatabaseService {
 
       return querySnapshot.docs
           .map((doc) {
-            final data = doc.data();
-            data['id'] = doc.id;
-            return NotificationModel.fromMap(data);
-          })
+        final data = doc.data();
+        data['id'] = doc.id;
+        return NotificationModel.fromMap(data);
+      })
           .toList();
     } catch (e) {
       throw Exception('خطأ في جلب الإشعارات: ${e.toString()}');
@@ -527,7 +572,7 @@ class ImageService {
 
   static Future<List<String>> uploadImages(List<File> imageFiles, String clientId) async {
     List<String> urls = [];
-    
+
     for (int i = 0; i < imageFiles.length; i++) {
       try {
         final compressedFile = await _compressImage(imageFiles[i]);
@@ -536,33 +581,50 @@ class ImageService {
             .ref()
             .child(FirebaseConstants.imagesStorage)
             .child(fileName);
-        
+
         final uploadTask = ref.putFile(compressedFile);
         final snapshot = await uploadTask;
-        
+
         final downloadUrl = await snapshot.ref.getDownloadURL();
         urls.add(downloadUrl);
-        
+
         // Delete temporary compressed file
-        await compressedFile.delete();
+        try {
+          await compressedFile.delete();
+        } catch (e) {
+          // Ignore delete error for compressed file
+        }
       } catch (e) {
         print('Error uploading image: $e');
       }
     }
-    
+
     return urls;
   }
 
+  // FIXED: Properly handle the return type from FlutterImageCompress
   static Future<File> _compressImage(File file) async {
-    final result = await FlutterImageCompress.compressAndGetFile(
-      file.absolute.path,
-      '${file.parent.path}/compressed_${file.path.split('/').last}',
-      quality: 70,
-      minWidth: 1024,
-      minHeight: 1024,
-    );
-    
-    return result ?? file;
+    try {
+      final result = await FlutterImageCompress.compressAndGetFile(
+        file.absolute.path,
+        '${file.parent.path}/compressed_${file.path.split('/').last}',
+        quality: 70,
+        minWidth: 1024,
+        minHeight: 1024,
+      );
+
+      // Handle the result properly based on its actual type
+      if (result != null && result is XFile) {
+        return File(result.path);
+      } else if (result != null) {
+        // Try to cast to File if it's already a File
+        return result as File;
+      } else {
+        return file; // Return original if compression failed
+      }
+    } catch (e) {
+      return file; // Return original if compression fails
+    }
   }
 
   static Future<void> deleteImage(String imageUrl) async {
@@ -588,10 +650,10 @@ class WhatsAppService {
       final formattedMessage = MessageTemplates.formatMessage(message, {
         'clientName': clientName,
       });
-      
+
       final encodedMessage = Uri.encodeComponent(formattedMessage);
       final whatsappUrl = 'https://wa.me/$formattedPhone?text=$encodedMessage';
-      
+
       final uri = Uri.parse(whatsappUrl);
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -612,10 +674,10 @@ class WhatsAppService {
       final formattedMessage = MessageTemplates.formatMessage(message, {
         'userName': userName,
       });
-      
+
       final encodedMessage = Uri.encodeComponent(formattedMessage);
       final whatsappUrl = 'https://wa.me/$phoneNumber?text=$encodedMessage';
-      
+
       final uri = Uri.parse(whatsappUrl);
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -634,7 +696,7 @@ class WhatsAppService {
     try {
       final formattedPhone = _formatPhoneNumber(phoneNumber, country);
       final telUrl = 'tel:+$formattedPhone';
-      
+
       final uri = Uri.parse(telUrl);
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri);
@@ -649,10 +711,10 @@ class WhatsAppService {
   static String _formatPhoneNumber(String phone, PhoneCountry country) {
     // Remove all non-digits
     String cleaned = phone.replaceAll(RegExp(r'[^\d]'), '');
-    
+
     switch (country) {
       case PhoneCountry.saudi:
-        // Remove existing country code
+      // Remove existing country code
         if (cleaned.startsWith('966')) {
           cleaned = cleaned.substring(3);
         }
@@ -662,7 +724,7 @@ class WhatsAppService {
         }
         return '966$cleaned';
       case PhoneCountry.yemen:
-        // Remove existing country code
+      // Remove existing country code
         if (cleaned.startsWith('967')) {
           cleaned = cleaned.substring(3);
         }
@@ -708,7 +770,7 @@ class BackgroundService {
 
   static void startBackgroundTasks() {
     if (_isRunning) return;
-    
+
     _isRunning = true;
     _timer = Timer.periodic(Duration(hours: 1), (timer) {
       _runBackgroundTasks();
@@ -734,7 +796,7 @@ class BackgroundService {
     try {
       final clients = await DatabaseService.getAllClients();
       final settings = await DatabaseService.getAdminSettings();
-      
+
       for (final client in clients) {
         if (!client.hasExited) {
           await _scheduleClientNotifications(client, settings);
@@ -773,7 +835,7 @@ class BackgroundService {
           priority: _getPriorityFromDays(client.daysRemaining),
           createdAt: DateTime.now(),
         );
-        
+
         await DatabaseService.saveNotification(notification);
         break; // Only schedule for the most relevant tier
       }
@@ -784,7 +846,7 @@ class BackgroundService {
     try {
       final users = await DatabaseService.getAllUsers();
       final settings = await DatabaseService.getAdminSettings();
-      
+
       for (final user in users) {
         if (user.validationEndDate != null && !user.isFrozen) {
           await _scheduleUserNotifications(user, settings);
@@ -822,7 +884,7 @@ class BackgroundService {
           priority: _getPriorityFromDays(daysRemaining),
           createdAt: DateTime.now(),
         );
-        
+
         await DatabaseService.saveNotification(notification);
         break; // Only schedule for the most relevant tier
       }
@@ -832,9 +894,9 @@ class BackgroundService {
   static Future<void> _autoFreezeExpiredUsers() async {
     try {
       final users = await DatabaseService.getAllUsers();
-      
+
       for (final user in users) {
-        if (user.validationEndDate != null && 
+        if (user.validationEndDate != null &&
             user.validationEndDate!.isBefore(DateTime.now()) &&
             !user.isFrozen) {
           await DatabaseService.freezeUser(user.id, 'انتهت صلاحية الحساب تلقائياً');
@@ -856,43 +918,43 @@ class BackgroundService {
 class StatusUpdateService {
   static Timer? _timer;
   static bool _isRunning = false;
-  
+
   static void startAutoStatusUpdate() {
     if (_isRunning) return;
-    
+
     _isRunning = true;
     print('🔄 Starting auto status update service...');
-    
+
     // Run immediately once
     _updateAllClientStatuses();
-    
+
     // Then run every 6 hours
     _timer = Timer.periodic(Duration(hours: 6), (timer) {
       _updateAllClientStatuses();
     });
   }
-  
+
   static void stopAutoStatusUpdate() {
     _timer?.cancel();
     _timer = null;
     _isRunning = false;
     print('⏹️ Auto status update service stopped');
   }
-  
+
   static Future<void> _updateAllClientStatuses() async {
     try {
       print('🔄 Running auto status update...');
-      
+
       final clients = await DatabaseService.getAllClients();
       final settings = await DatabaseService.getAdminSettings();
-      
+
       final statusSettings = settings['clientStatusSettings'] ?? {};
       final greenDays = statusSettings['greenDays'] ?? 30;
       final yellowDays = statusSettings['yellowDays'] ?? 30;
       final redDays = statusSettings['redDays'] ?? 1;
-      
+
       int updatedCount = 0;
-      
+
       for (final client in clients) {
         if (!client.hasExited) {
           final currentDaysRemaining = StatusCalculator.calculateDaysRemaining(client.entryDate);
@@ -902,28 +964,28 @@ class StatusUpdateService {
             yellowDays: yellowDays,
             redDays: redDays,
           );
-          
+
           // Update if status changed or days remaining changed significantly
-          if (newStatus != client.status || 
+          if (newStatus != client.status ||
               (currentDaysRemaining - client.daysRemaining).abs() > 0) {
-            
+
             await DatabaseService.updateClientWithStatus(
-              client.id, 
-              newStatus, 
-              currentDaysRemaining
+                client.id,
+                newStatus,
+                currentDaysRemaining
             );
             updatedCount++;
           }
         }
       }
-      
+
       print('✅ Auto status update completed. Updated $updatedCount clients.');
-      
+
     } catch (e) {
       print('❌ Auto status update error: $e');
     }
   }
-  
+
   static Future<void> forceUpdateAllStatuses() async {
     print('🔄 Force updating all client statuses...');
     await _updateAllClientStatuses();

@@ -11,12 +11,12 @@ import 'services.dart';
 class AppConstants {
   static const String appName = 'نظام إدارة تأشيرات العمرة';
   static const String appVersion = '1.0.0';
-  
+
   // Default notification settings
   static const int defaultGreenDays = 30;
   static const int defaultYellowDays = 30;
   static const int defaultRedDays = 1;
-  
+
   // Default notification tiers
   static const int firstTierDays = 10;
   static const int firstTierFrequency = 2;
@@ -24,12 +24,12 @@ class AppConstants {
   static const int secondTierFrequency = 4;
   static const int thirdTierDays = 2;
   static const int thirdTierFrequency = 8;
-  
+
   // User notification defaults
   static const int userFirstTierFreq = 1;
   static const int userSecondTierFreq = 1;
   static const int userThirdTierFreq = 1;
-  
+
   // Default messages
   static const String defaultClientMessage = 'عزيزي العميل {clientName}، تنتهي صلاحية تأشيرتك قريباً. يرجى التواصل معنا.';
   static const String defaultUserMessage = 'تنبيه: ينتهي حسابك قريباً. يرجى التجديد.';
@@ -70,7 +70,7 @@ class MessageTemplates {
     'tier3': 'عاجل: عزيزي العميل {clientName}، تنتهي صلاحية تأشيرتك خلال {daysRemaining} أيام. اتصل بنا على الفور.',
     'expired': 'عزيزي العميل {clientName}، انتهت صلاحية تأشيرتك. يجب مراجعتنا فوراً.',
   };
-  
+
   // User validation messages
   static const Map<String, String> userMessages = {
     'tier1': 'تنبيه: ينتهي حسابك خلال {daysRemaining} أيام. يرجى التجديد.',
@@ -80,7 +80,7 @@ class MessageTemplates {
     'freeze_notification': 'تم تجميد حسابك. السبب: {reason}',
     'unfreeze_notification': 'تم إلغاء تجميد حسابك. يمكنك الآن استخدام النظام.',
   };
-  
+
   // WhatsApp default messages
   static const Map<String, String> whatsappMessages = {
     'client_default': 'عزيزي العميل {clientName}، تنتهي صلاحية تأشيرتك قريباً. يرجى التواصل معنا.',
@@ -88,7 +88,7 @@ class MessageTemplates {
     'user_default': 'تنبيه: ينتهي حسابك قريباً. يرجى التجديد.',
     'admin_broadcast': 'إشعار عام من إدارة النظام: {message}',
   };
-  
+
   // Helper method to format message with variables
   static String formatMessage(String template, Map<String, String> variables) {
     String formatted = template;
@@ -161,9 +161,9 @@ class ValidationUtils {
     if (value == null || value.trim().isEmpty) {
       return null; // Optional field
     }
-    
+
     final cleanedValue = value.replaceAll(RegExp(r'[^\d]'), '');
-    
+
     if (country == PhoneCountry.saudi) {
       if (!RegExp(r'^(5)[0-9]{8}$').hasMatch(cleanedValue)) {
         return 'رقم سعودي غير صحيح (يجب أن يبدأ بـ 5 ويكون 9 أرقام)';
@@ -173,7 +173,7 @@ class ValidationUtils {
         return 'رقم يمني غير صحيح (يجب أن يبدأ بـ 7 ويكون 9 أرقام)';
       }
     }
-    
+
     return null;
   }
 
@@ -181,11 +181,11 @@ class ValidationUtils {
     if (value == null || value.trim().isEmpty) {
       return null; // Optional field
     }
-    
+
     if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
       return 'البريد الإلكتروني غير صحيح';
     }
-    
+
     return null;
   }
 }
@@ -198,7 +198,7 @@ class StatusCalculator {
     int redDays = 1,
   }) {
     final daysRemaining = calculateDaysRemaining(entryDate);
-    
+
     if (daysRemaining > greenDays) {
       return ClientStatus.green;
     } else if (daysRemaining > redDays) {
@@ -319,15 +319,19 @@ class _CustomTextFieldState extends State<CustomTextField> {
       keyboardType: widget.keyboardType,
       maxLines: widget.isPassword ? 1 : widget.maxLines,
       enabled: widget.enabled,
-      textDirection: TextDirection.rtl,
+      textDirection: ui.TextDirection.rtl, // FIXED: Use ui.TextDirection.rtl
       decoration: InputDecoration(
         labelText: widget.label,
-        prefixIcon: widget.icon != null ? Icon(widget.icon) : null,
+        prefixIcon: widget.icon != null ? Icon(widget.icon!) : null, // FIXED: Added null assertion
         suffixIcon: widget.isPassword
             ? IconButton(
-                icon: Icon(_obscureText ? Icons.visibility : Icons.visibility_off),
-                onPressed: () => setState(() => _obscureText = !_obscureText),
-              )
+          icon: Icon(_obscureText ? Icons.visibility : Icons.visibility_off),
+          onPressed: () {
+            setState(() {
+              _obscureText = !_obscureText;
+            });
+          },
+        )
             : null,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
@@ -341,6 +345,10 @@ class _CustomTextFieldState extends State<CustomTextField> {
           borderSide: BorderSide(color: Theme.of(context).primaryColor),
         ),
         errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide(color: Colors.red),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: Colors.red),
         ),
@@ -584,7 +592,7 @@ class UserCard extends StatelessWidget {
               ],
             ),
             SizedBox(height: 12),
-            
+
             Row(
               children: [
                 Expanded(
@@ -595,12 +603,12 @@ class UserCard extends StatelessWidget {
                 ),
               ],
             ),
-            
+
             if (user.email.isNotEmpty) ...[
               SizedBox(height: 8),
               _buildInfoItem(Icons.email, user.email),
             ],
-            
+
             if (user.validationEndDate != null) ...[
               SizedBox(height: 8),
               _buildInfoItem(
@@ -609,7 +617,7 @@ class UserCard extends StatelessWidget {
                 color: _getValidationColor(),
               ),
             ],
-            
+
             if (user.isFrozen && user.freezeReason != null) ...[
               SizedBox(height: 8),
               Container(
@@ -633,7 +641,7 @@ class UserCard extends StatelessWidget {
                 ),
               ),
             ],
-            
+
             SizedBox(height: 12),
             Row(
               children: [
@@ -707,7 +715,7 @@ class UserCard extends StatelessWidget {
   Widget _buildStatusChip() {
     String text;
     Color color;
-    
+
     if (user.isFrozen) {
       text = 'مجمد';
       color = Colors.red;
@@ -721,7 +729,7 @@ class UserCard extends StatelessWidget {
       text = 'نشط';
       color = Colors.green;
     }
-    
+
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -769,7 +777,7 @@ class UserCard extends StatelessWidget {
 
   Color _getValidationColor() {
     if (user.validationEndDate == null) return Colors.grey;
-    
+
     final daysRemaining = user.validationEndDate!.difference(DateTime.now()).inDays;
     if (daysRemaining < 0) return Colors.red;
     if (daysRemaining <= 5) return Colors.orange;
@@ -930,7 +938,7 @@ class ClientCard extends StatelessWidget {
           Icon(Icons.phone, size: 16, color: Colors.grey),
           SizedBox(width: 4),
           Text('الهاتف: ${client.clientPhone}'),
-          if (phones.length > 1) 
+          if (phones.length > 1)
             Icon(Icons.arrow_drop_down, size: 16, color: Colors.grey),
         ],
       ),
@@ -1001,7 +1009,7 @@ class ClientCard extends StatelessWidget {
 }
 
 // core/widgets/image_viewer.dart
-class ImageViewer extends StatelessWidget {
+class ImageViewer extends StatefulWidget {
   final List<String> imageUrls;
   final int initialIndex;
 
@@ -1012,26 +1020,46 @@ class ImageViewer extends StatelessWidget {
   }) : super(key: key);
 
   @override
+  State<ImageViewer> createState() => _ImageViewerState();
+}
+
+class _ImageViewerState extends State<ImageViewer> {
+  late PageController _pageController;
+  int _currentIndex = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('الصور المرفقة'),
+        title: Text('الصور المرفقة (${_currentIndex + 1}/${widget.imageUrls.length})'),
         backgroundColor: Colors.black,
         actions: [
           IconButton(
             icon: Icon(Icons.download),
-            onPressed: () => _downloadImage(context, imageUrls[_currentIndex]),
+            onPressed: () => _downloadImage(context, widget.imageUrls[_currentIndex]),
           ),
         ],
       ),
       backgroundColor: Colors.black,
       body: PageView.builder(
-        itemCount: imageUrls.length,
-        controller: PageController(initialPage: initialIndex),
+        controller: _pageController,
+        itemCount: widget.imageUrls.length,
+        onPageChanged: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
         itemBuilder: (context, index) {
           return Center(
             child: CachedNetworkImage(
-              imageUrl: imageUrls[index],
+              imageUrl: widget.imageUrls[index],
               placeholder: (context, url) => SpinKitFadingCircle(
                 color: Colors.white,
                 size: 50.0,
@@ -1049,8 +1077,6 @@ class ImageViewer extends StatelessWidget {
     );
   }
 
-  int _currentIndex = 0;
-
   void _downloadImage(BuildContext context, String imageUrl) async {
     try {
       final uri = Uri.parse(imageUrl);
@@ -1062,5 +1088,11 @@ class ImageViewer extends StatelessWidget {
         SnackBar(content: Text('خطأ في تحميل الصورة')),
       );
     }
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 }
