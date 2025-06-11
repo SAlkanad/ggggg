@@ -18,6 +18,7 @@ dependencies:
   firebase_auth: ^4.15.3
   cloud_firestore: ^4.13.6
   firebase_storage: ^11.5.6
+  firebase_crashlytics: ^3.4.9  # Added for crash reporting
 
   # State Management
   provider: ^6.1.1
@@ -51,6 +52,15 @@ dependencies:
   flutter_localizations:
     sdk: flutter
 
+  # Network & Connectivity
+  connectivity_plus: ^5.0.2  # Added for network monitoring
+  
+  # Local Notifications
+  flutter_local_notifications: ^16.3.2  # Added for local notifications
+  
+  # Permission handling
+  permission_handler: ^11.1.0  # Added for handling permissions
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -63,13 +73,16 @@ flutter:
   generate: false
 
   # Assets
-  # assets:
-  #   - images/
+  assets:
+    - assets/images/
+    - assets/icons/
 
   # Fonts
-  # fonts:
-  #   - family: Cairo
-  #     fonts:
-  #       - asset: fonts/Cairo-Regular.ttf
-  #       - asset: fonts/Cairo-Bold.ttf
-  #         weight: 700
+  fonts:
+    - family: Cairo
+      fonts:
+        - asset: assets/fonts/Cairo-Regular.ttf
+        - asset: assets/fonts/Cairo-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Cairo-Light.ttf
+          weight: 300
