@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'models.dart';
 import 'services.dart';
 import 'core.dart';
+import 'dart:io';
 
 // controllers/auth_controller.dart
 class AuthController extends ChangeNotifier {

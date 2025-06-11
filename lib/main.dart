@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:corporation_no_icon/corporation_no_icon.dart';
 import 'package:timezone/data/latest.dart' as tz;
 
 import 'firebase_options.dart';
@@ -46,12 +45,7 @@ class PassengersApp extends StatelessWidget {
       ],
       child: MaterialApp(
         title: 'نظام إدارة تأشيرات العمرة',
-        theme: AppTheme.lightTheme.copyWith(
-          // Use car icon from corporation_no_icon
-          appBarTheme: AppTheme.lightTheme.appBarTheme.copyWith(
-            leading: Icon(CorporationNoIcon.car),
-          ),
-        ),
+        theme: AppTheme.lightTheme,
         initialRoute: '/',
         onGenerateRoute: AppRoutes.generateRoute,
         debugShowCheckedModeBanner: false,
