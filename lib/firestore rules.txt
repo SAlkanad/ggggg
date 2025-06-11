@@ -1,0 +1,40 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if request has required fields
+    function hasRequiredFields() {
+      return request.auth != null || 
+             (request.resource != null && request.resource.data != null);
+    }
+    
+    // Users collection - allow read for login, write for user management
+    match /users/{userId} {
+      // Allow read for login verification (needed for authentication)
+      allow read: if true;
+      
+      // Allow write for user creation and updates
+      allow write: if true;
+    }
+    
+    // Clients collection - full access needed for client management
+    match /clients/{clientId} {
+      allow read, write: if true;
+    }
+    
+    // Admin settings - full access for system configuration
+    match /adminSettings/{document} {
+      allow read, write: if true;
+    }
+    
+    // Notifications - full access for notification system
+    match /notifications/{notificationId} {
+      allow read, write: if true;
+    }
+    
+    // User settings - full access for user preferences
+    match /userSettings/{userId} {
+      allow read, write: if true;
+    }
+  }
+}

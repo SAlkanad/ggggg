@@ -1,0 +1,33 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper function to check authentication
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Images for clients - authenticated users only
+    match /images/{clientId}/{fileName} {
+      // Allow read for authenticated users
+      allow read: if isAuthenticated();
+      
+      // Allow write for authenticated users (file size limit: 10MB)
+      allow write: if isAuthenticated() && 
+                      request.resource.size < 10 * 1024 * 1024 &&
+                      request.resource.contentType.matches('image/.*');
+      
+      // Allow delete for authenticated users
+      allow delete: if isAuthenticated();
+    }
+    
+    // General images directory
+    match /images/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && 
+                      request.resource.size < 10 * 1024 * 1024 &&
+                      request.resource.contentType.matches('image/.*');
+      allow delete: if isAuthenticated();
+    }
+  }
+}
