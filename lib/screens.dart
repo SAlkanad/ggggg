@@ -19,11 +19,13 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _showBiometricButton = false;
 
   @override
   void initState() {
     super.initState();
     _loadSavedCredentials();
+    _checkBiometricAvailability();
   }
 
   Future<void> _loadSavedCredentials() async {
@@ -38,6 +40,14 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _checkBiometricAvailability() async {
+    final authController = Provider.of<AuthController>(context, listen: false);
+    final isAvailable = await authController.checkBiometricAvailability();
+    setState(() {
+      _showBiometricButton = isAvailable && _usernameController.text.isNotEmpty;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -49,7 +59,6 @@ class _LoginScreenState extends State<LoginScreen> {
         padding: EdgeInsets.all(16.0),
         child: Consumer<AuthController>(
           builder: (context, authController, child) {
-            // Auto-navigate if already logged in
             if (authController.isLoggedIn) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 final user = authController.currentUser!;
@@ -90,6 +99,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     label: 'اسم المستخدم',
                     icon: Icons.person,
                     validator: ValidationUtils.validateUsername,
+                    onChanged: (value) => _checkBiometricAvailability(),
                   ),
                   SizedBox(height: 16),
                   
@@ -122,6 +132,19 @@ class _LoginScreenState extends State<LoginScreen> {
                           : Text('دخول', style: TextStyle(fontSize: 18)),
                     ),
                   ),
+
+                  if (_showBiometricButton) ...[
+                    SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: OutlinedButton.icon(
+                        onPressed: authController.isLoading ? null : _handleBiometricLogin,
+                        icon: Icon(Icons.fingerprint),
+                        label: Text('تسجيل الدخول ببصمة الإصبع'),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             );
@@ -166,6 +189,34 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> _handleBiometricLogin() async {
+    try {
+      final authController = Provider.of<AuthController>(context, listen: false);
+      final success = await authController.loginWithBiometric(_usernameController.text);
+      
+      if (success) {
+        final user = authController.currentUser!;
+        switch (user.role) {
+          case UserRole.admin:
+            Navigator.pushReplacementNamed(context, '/admin_dashboard');
+            break;
+          case UserRole.user:
+          case UserRole.agency:
+            Navigator.pushReplacementNamed(context, '/user_dashboard');
+            break;
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('فشل في المصادقة ببصمة الإصبع')),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('خطأ في المصادقة ببصمة الإصبع')),
+      );
+    }
+  }
+
   void _showFreezeDialog(String reason) {
     showDialog(
       context: context,
@@ -198,6 +249,15 @@ class AdminDashboard extends StatelessWidget {
       appBar: AppBar(
         title: Text('لوحة تحكم المدير'),
         actions: [
+          Consumer<NotificationController>(
+            builder: (context, notificationController, child) {
+              return NotificationDropdown(
+                notifications: notificationController.getUnreadNotifications(),
+                onMarkAsRead: (id) => notificationController.markAsRead(id),
+                onViewAll: () => Navigator.pushNamed(context, '/admin/notifications'),
+              );
+            },
+          ),
           IconButton(
             icon: Icon(Icons.sync),
             onPressed: () => _syncData(context),
@@ -298,10 +358,8 @@ class AdminDashboard extends StatelessWidget {
 
   void _syncData(BuildContext context) async {
     try {
-      // Force update all client statuses
       await StatusUpdateService.forceUpdateAllStatuses();
       
-      // Refresh controllers
       final authController = Provider.of<AuthController>(context, listen: false);
       if (authController.currentUser != null) {
         final clientController = Provider.of<ClientController>(context, listen: false);
@@ -334,6 +392,15 @@ class UserDashboard extends StatelessWidget {
       appBar: AppBar(
         title: Text('لوحة تحكم المستخدم'),
         actions: [
+          Consumer<NotificationController>(
+            builder: (context, notificationController, child) {
+              return NotificationDropdown(
+                notifications: notificationController.getUnreadNotifications(),
+                onMarkAsRead: (id) => notificationController.markAsRead(id),
+                onViewAll: () => Navigator.pushNamed(context, '/user/notifications'),
+              );
+            },
+          ),
           IconButton(
             icon: Icon(Icons.sync),
             onPressed: () => _syncData(context),
@@ -464,7 +531,7 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final _clientNameController = TextEditingController();
   final _clientPhoneController = TextEditingController();
-  final _secondPhoneController = TextEditingController(); // Added second phone
+  final _secondPhoneController = TextEditingController();
   final _agentNameController = TextEditingController();
   final _agentPhoneController = TextEditingController();
   final _notesController = TextEditingController();
@@ -840,6 +907,16 @@ class _ClientManagementScreenState extends State<ClientManagementScreen> {
         title: Text('إدارة العملاء'),
         actions: [
           IconButton(
+            icon: Icon(Icons.add),
+            onPressed: () => Navigator.pushNamed(context, '/admin/add_client'),
+            tooltip: 'إضافة عميل جديد',
+          ),
+          IconButton(
+            icon: Icon(Icons.filter_list),
+            onPressed: () => _showFilterBottomSheet(),
+            tooltip: 'تصفية',
+          ),
+          IconButton(
             icon: Icon(Icons.sync),
             onPressed: () => _refreshClients(),
           ),
@@ -902,6 +979,29 @@ class _ClientManagementScreenState extends State<ClientManagementScreen> {
     );
   }
 
+  void _showFilterBottomSheet() {
+    // Placeholder for filter functionality
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('مرشحات البحث', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            SizedBox(height: 16),
+            Text('قريباً سيتم إضافة مرشحات متقدمة'),
+            SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('إغلاق'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _performSearch(String query) {
     final authController = Provider.of<AuthController>(context, listen: false);
     final clientController = Provider.of<ClientController>(context, listen: false);
@@ -958,9 +1058,6 @@ class _ClientManagementScreenState extends State<ClientManagementScreen> {
   }
 }
 
-// Continue with the remaining screens...
-// Due to length limitations, I'll include key screens. The pattern is similar for all other screens.
-
 // screens/user/user_client_form_screen.dart
 class UserClientFormScreen extends StatelessWidget {
   final ClientModel? client;
@@ -998,6 +1095,11 @@ class _UserClientManagementScreenState extends State<UserClientManagementScreen>
       appBar: AppBar(
         title: Text('إدارة العملاء'),
         actions: [
+          IconButton(
+            icon: Icon(Icons.add),
+            onPressed: () => Navigator.pushNamed(context, '/user/add_client'),
+            tooltip: 'إضافة عميل جديد',
+          ),
           IconButton(
             icon: Icon(Icons.sync),
             onPressed: () => _refreshClients(),
@@ -2897,5 +2999,108 @@ class _UserSettingsScreenState extends State<UserSettingsScreen> {
     _tier3MessageController.dispose();
     _whatsappMessageController.dispose();
     super.dispose();
+  }
+}
+
+// Placeholder widget for NotificationDropdown - needs to be implemented
+class NotificationDropdown extends StatelessWidget {
+  final List<NotificationModel> notifications;
+  final Function(String) onMarkAsRead;
+  final VoidCallback onViewAll;
+
+  const NotificationDropdown({
+    Key? key,
+    required this.notifications,
+    required this.onMarkAsRead,
+    required this.onViewAll,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      icon: Stack(
+        children: [
+          Icon(Icons.notifications),
+          if (notifications.isNotEmpty)
+            Positioned(
+              right: 0,
+              top: 0,
+              child: Container(
+                padding: EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                constraints: BoxConstraints(
+                  minWidth: 12,
+                  minHeight: 12,
+                ),
+                child: Text(
+                  '${notifications.length}',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 8,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+        ],
+      ),
+      itemBuilder: (context) {
+        if (notifications.isEmpty) {
+          return [
+            PopupMenuItem<String>(
+              value: 'empty',
+              child: Text('لا توجد إشعارات جديدة'),
+            ),
+          ];
+        }
+
+        final items = notifications.take(5).map((notification) {
+          return PopupMenuItem<String>(
+            value: notification.id,
+            child: Container(
+              width: 250,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    notification.title,
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    notification.message,
+                    style: TextStyle(fontSize: 12),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          );
+        }).toList();
+
+        if (notifications.length > 5) {
+          items.add(
+            PopupMenuItem<String>(
+              value: 'view_all',
+              child: Text('عرض جميع الإشعارات'),
+            ),
+          );
+        }
+
+        return items;
+      },
+      onSelected: (value) {
+        if (value == 'view_all') {
+          onViewAll();
+        } else if (value != 'empty') {
+          onMarkAsRead(value);
+        }
+      },
+    );
   }
 }

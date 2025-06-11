@@ -3,6 +3,8 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:local_auth/local_auth.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:crypto/crypto.dart';
 import 'package:cross_file/cross_file.dart';
 import 'dart:convert';
@@ -12,11 +14,59 @@ import 'dart:typed_data';
 import 'models.dart';
 import 'core.dart';
 
-// services/auth_service.dart
+class BiometricService {
+  static final LocalAuthentication _localAuth = LocalAuthentication();
+
+  static Future<bool> isBiometricAvailable() async {
+    try {
+      return await _localAuth.canCheckBiometrics;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  static Future<List<BiometricType>> getAvailableBiometrics() async {
+    try {
+      return await _localAuth.getAvailableBiometrics();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  static Future<bool> authenticateWithBiometrics() async {
+    try {
+      return await _localAuth.authenticate(
+        localizedReason: 'استخدم بصمتك لتسجيل الدخول',
+        options: AuthenticationOptions(
+          biometricOnly: true,
+          stickyAuth: true,
+        ),
+      );
+    } catch (e) {
+      return false;
+    }
+  }
+
+  static Future<void> enableBiometric(String userId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('biometric_enabled_$userId', true);
+  }
+
+  static Future<void> disableBiometric(String userId) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('biometric_enabled_$userId', false);
+  }
+
+  static Future<bool> isBiometricEnabled(String userId) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool('biometric_enabled_$userId') ?? false;
+  }
+}
+
 class AuthService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  static Future<UserModel> login(String username, String password) async {
+  static Future<UserModel> login(String username, String password, {bool useBiometric = false}) async {
     try {
       final hashedPassword = _hashPassword(password);
 
@@ -52,6 +102,20 @@ class AuthService {
       return user;
     } catch (e) {
       throw Exception(e.toString());
+    }
+  }
+
+  static Future<UserModel?> loginWithBiometric(String username) async {
+    try {
+      if (await BiometricService.authenticateWithBiometrics()) {
+        final credentials = await getSavedCredentials();
+        if (credentials['username'] == username && credentials['password'] != null) {
+          return await login(username, credentials['password']!, useBiometric: true);
+        }
+      }
+      return null;
+    } catch (e) {
+      return null;
     }
   }
 
@@ -112,10 +176,8 @@ class AuthService {
     return digest.toString();
   }
 
-  // Add method to create default admin
   static Future<void> createDefaultAdmin() async {
     try {
-      // Check if admin already exists
       final querySnapshot = await _firestore
           .collection(FirebaseConstants.usersCollection)
           .where('role', isEqualTo: 'admin')
@@ -123,18 +185,17 @@ class AuthService {
           .get();
 
       if (querySnapshot.docs.isEmpty) {
-        // Create default admin user
         final adminUser = UserModel(
           id: 'admin_${DateTime.now().millisecondsSinceEpoch}',
           username: 'admin',
-          password: _hashPassword('admin123'), // Change this password!
+          password: _hashPassword('admin123'),
           role: UserRole.admin,
           name: 'مدير النظام',
           phone: '966500000000',
           email: 'admin@example.com',
           isActive: true,
           isFrozen: false,
-          validationEndDate: DateTime.now().add(Duration(days: 365 * 10)), // 10 years
+          validationEndDate: DateTime.now().add(Duration(days: 365 * 10)),
           createdAt: DateTime.now(),
           createdBy: 'system',
         );
@@ -157,11 +218,9 @@ class AuthService {
   }
 }
 
-// services/database_service.dart
 class DatabaseService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Client operations
   static Future<void> saveClient(ClientModel client, List<File>? images) async {
     try {
       List<String> imageUrls = [];
@@ -251,6 +310,50 @@ class DatabaseService {
     }
   }
 
+  static Future<List<ClientModel>> getFilteredClients({
+    String? userId,
+    bool isAdmin = false,
+    String? filterByUser,
+    ClientStatus? filterByStatus,
+    VisaType? filterByVisaType,
+    DateTime? startDate,
+    DateTime? endDate,
+  }) async {
+    try {
+      List<ClientModel> clients;
+      
+      if (isAdmin) {
+        clients = await getAllClients();
+      } else {
+        clients = await getClientsByUser(userId!);
+      }
+
+      if (filterByUser != null && filterByUser.isNotEmpty) {
+        clients = clients.where((c) => c.createdBy == filterByUser).toList();
+      }
+
+      if (filterByStatus != null) {
+        clients = clients.where((c) => c.status == filterByStatus).toList();
+      }
+
+      if (filterByVisaType != null) {
+        clients = clients.where((c) => c.visaType == filterByVisaType).toList();
+      }
+
+      if (startDate != null) {
+        clients = clients.where((c) => c.entryDate.isAfter(startDate.subtract(Duration(days: 1)))).toList();
+      }
+
+      if (endDate != null) {
+        clients = clients.where((c) => c.entryDate.isBefore(endDate.add(Duration(days: 1)))).toList();
+      }
+
+      return clients;
+    } catch (e) {
+      throw Exception('خطأ في تصفية العملاء: ${e.toString()}');
+    }
+  }
+
   static Future<void> updateClientStatus(String clientId, ClientStatus status) async {
     try {
       final updateData = {
@@ -290,7 +393,6 @@ class DatabaseService {
 
   static Future<void> deleteClient(String clientId) async {
     try {
-      // Get client data to delete associated images
       final clientDoc = await _firestore
           .collection(FirebaseConstants.clientsCollection)
           .doc(clientId)
@@ -300,7 +402,6 @@ class DatabaseService {
         final clientData = clientDoc.data()!;
         final imageUrls = List<String>.from(clientData['imageUrls'] ?? []);
 
-        // Delete images from storage
         for (String imageUrl in imageUrls) {
           try {
             await ImageService.deleteImage(imageUrl);
@@ -319,7 +420,6 @@ class DatabaseService {
     }
   }
 
-  // User operations
   static Future<void> saveUser(UserModel user) async {
     try {
       await _firestore
@@ -335,11 +435,11 @@ class DatabaseService {
     try {
       final querySnapshot = await _firestore
           .collection(FirebaseConstants.usersCollection)
-          .where('role', whereIn: ['user', 'agency'])
           .orderBy('createdAt', descending: true)
           .get();
 
       return querySnapshot.docs
+          .where((doc) => doc.data()['role'] != 'admin')
           .map((doc) {
         final data = doc.data();
         data['id'] = doc.id;
@@ -353,6 +453,15 @@ class DatabaseService {
 
   static Future<void> deleteUser(String userId) async {
     try {
+      final clientsQuery = await _firestore
+          .collection(FirebaseConstants.clientsCollection)
+          .where('createdBy', isEqualTo: userId)
+          .get();
+
+      for (var doc in clientsQuery.docs) {
+        await deleteClient(doc.id);
+      }
+
       await _firestore
           .collection(FirebaseConstants.usersCollection)
           .doc(userId)
@@ -403,7 +512,6 @@ class DatabaseService {
     }
   }
 
-  // Notification operations
   static Future<void> saveNotification(NotificationModel notification) async {
     try {
       await _firestore
@@ -465,7 +573,6 @@ class DatabaseService {
     }
   }
 
-  // Settings operations
   static Future<void> saveAdminSettings(Map<String, dynamic> settings) async {
     try {
       await _firestore
@@ -541,6 +648,10 @@ class DatabaseService {
         'clientMessage': 'عزيزي العميل {clientName}، تنتهي صلاحية تأشيرتك قريباً. يرجى التواصل معنا.',
         'userMessage': 'تنبيه: ينتهي حسابك قريباً. يرجى التجديد.',
       },
+      'adminFilters': {
+        'showOnlyMyClients': false,
+        'showOnlyMyNotifications': false,
+      },
     };
   }
 
@@ -561,12 +672,12 @@ class DatabaseService {
         'notifications': true,
         'whatsapp': true,
         'autoSchedule': true,
+        'biometric': false,
       },
     };
   }
 }
 
-// services/image_service.dart
 class ImageService {
   static final FirebaseStorage _storage = FirebaseStorage.instance;
 
@@ -588,11 +699,9 @@ class ImageService {
         final downloadUrl = await snapshot.ref.getDownloadURL();
         urls.add(downloadUrl);
 
-        // Delete temporary compressed file
         try {
           await compressedFile.delete();
         } catch (e) {
-          // Ignore delete error for compressed file
         }
       } catch (e) {
         print('Error uploading image: $e');
@@ -602,7 +711,6 @@ class ImageService {
     return urls;
   }
 
-  // FIXED: Properly handle the return type from FlutterImageCompress
   static Future<File> _compressImage(File file) async {
     try {
       final String targetPath = '${file.parent.path}/compressed_${file.uri.pathSegments.last}';
@@ -619,11 +727,11 @@ class ImageService {
         return File(result.path);
       } else {
         print('Image compression returned null, using original file');
-        return file; // Return original if compression failed
+        return file;
       }
     } catch (e) {
       print('Image compression error: $e');
-      return file; // Return original if compression fails
+      return file;
     }
   }
 
@@ -635,9 +743,19 @@ class ImageService {
       print('Error deleting image: $e');
     }
   }
+
+  static Future<void> downloadImage(String imageUrl) async {
+    try {
+      final uri = Uri.parse(imageUrl);
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      print('Error downloading image: $e');
+    }
+  }
 }
 
-// services/whatsapp_service.dart
 class WhatsAppService {
   static Future<void> sendClientMessage({
     required String phoneNumber,
@@ -709,26 +827,21 @@ class WhatsAppService {
   }
 
   static String _formatPhoneNumber(String phone, PhoneCountry country) {
-    // Remove all non-digits
     String cleaned = phone.replaceAll(RegExp(r'[^\d]'), '');
 
     switch (country) {
       case PhoneCountry.saudi:
-      // Remove existing country code
         if (cleaned.startsWith('966')) {
           cleaned = cleaned.substring(3);
         }
-        // Remove leading zero
         if (cleaned.startsWith('0')) {
           cleaned = cleaned.substring(1);
         }
         return '966$cleaned';
       case PhoneCountry.yemen:
-      // Remove existing country code
         if (cleaned.startsWith('967')) {
           cleaned = cleaned.substring(3);
         }
-        // Remove leading zero
         if (cleaned.startsWith('0')) {
           cleaned = cleaned.substring(1);
         }
@@ -737,33 +850,64 @@ class WhatsAppService {
   }
 }
 
-// services/notification_service.dart
 class NotificationService {
+  static final FlutterLocalNotificationsPlugin _localNotifications =
+      FlutterLocalNotificationsPlugin();
+
   static Future<void> initialize() async {
-    // Initialize local notifications if needed
-    print('Notification service initialized');
+    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const iosSettings = DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
+
+    const initSettings = InitializationSettings(
+      android: androidSettings,
+      iOS: iosSettings,
+    );
+
+    await _localNotifications.initialize(initSettings);
   }
 
-  static Future<void> scheduleClientNotification({
-    required String clientId,
-    required String clientName,
-    required String message,
-    required DateTime scheduledTime,
+  static Future<void> showNotification({
+    required int id,
+    required String title,
+    required String body,
+    String? payload,
   }) async {
-    // Implementation for scheduling local notifications
-    print('Scheduled notification for client: $clientName at $scheduledTime');
-  }
+    const androidDetails = AndroidNotificationDetails(
+      'passenger_channel',
+      'Passenger Notifications',
+      channelDescription: 'Notifications for passenger visa expiry',
+      importance: Importance.high,
+      priority: Priority.high,
+      showWhen: true,
+      enableVibration: true,
+      playSound: true,
+    );
 
-  static Future<void> sendUserValidationNotification({
-    required String userId,
-    required String message,
-  }) async {
-    // Implementation for sending user validation notifications
-    print('Sent validation notification to user: $userId');
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    const notificationDetails = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    await _localNotifications.show(
+      id,
+      title,
+      body,
+      notificationDetails,
+      payload: payload,
+    );
   }
 }
 
-// services/background_service.dart
 class BackgroundService {
   static Timer? _timer;
   static bool _isRunning = false;
@@ -821,7 +965,6 @@ class BackgroundService {
       final message = tier['message'] as String;
 
       if (client.daysRemaining <= days && client.daysRemaining > 0) {
-        // Create notification record
         final notification = NotificationModel(
           id: '${client.id}_${DateTime.now().millisecondsSinceEpoch}',
           type: NotificationType.clientExpiring,
@@ -837,7 +980,15 @@ class BackgroundService {
         );
 
         await DatabaseService.saveNotification(notification);
-        break; // Only schedule for the most relevant tier
+        
+        await NotificationService.showNotification(
+          id: notification.hashCode,
+          title: notification.title,
+          body: notification.message,
+          payload: notification.id,
+        );
+        
+        break;
       }
     }
   }
@@ -871,7 +1022,6 @@ class BackgroundService {
       final message = tier['message'] as String;
 
       if (daysRemaining <= days && daysRemaining > 0) {
-        // Create notification record
         final notification = NotificationModel(
           id: '${user.id}_validation_${DateTime.now().millisecondsSinceEpoch}',
           type: NotificationType.userValidationExpiring,
@@ -886,7 +1036,7 @@ class BackgroundService {
         );
 
         await DatabaseService.saveNotification(notification);
-        break; // Only schedule for the most relevant tier
+        break;
       }
     }
   }
@@ -914,7 +1064,6 @@ class BackgroundService {
   }
 }
 
-// services/status_update_service.dart
 class StatusUpdateService {
   static Timer? _timer;
   static bool _isRunning = false;
@@ -925,10 +1074,8 @@ class StatusUpdateService {
     _isRunning = true;
     print('🔄 Starting auto status update service...');
 
-    // Run immediately once
     _updateAllClientStatuses();
 
-    // Then run every 6 hours
     _timer = Timer.periodic(Duration(hours: 6), (timer) {
       _updateAllClientStatuses();
     });
@@ -965,7 +1112,6 @@ class StatusUpdateService {
             redDays: redDays,
           );
 
-          // Update if status changed or days remaining changed significantly
           if (newStatus != client.status ||
               (currentDaysRemaining - client.daysRemaining).abs() > 0) {
 

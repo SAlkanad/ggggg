@@ -7,17 +7,14 @@ import 'dart:ui' as ui;
 import 'models.dart';
 import 'services.dart';
 
-// core/constants/app_constants.dart
 class AppConstants {
   static const String appName = 'نظام إدارة تأشيرات العمرة';
   static const String appVersion = '1.0.0';
 
-  // Default notification settings
   static const int defaultGreenDays = 30;
   static const int defaultYellowDays = 30;
   static const int defaultRedDays = 1;
 
-  // Default notification tiers
   static const int firstTierDays = 10;
   static const int firstTierFrequency = 2;
   static const int secondTierDays = 5;
@@ -25,17 +22,14 @@ class AppConstants {
   static const int thirdTierDays = 2;
   static const int thirdTierFrequency = 8;
 
-  // User notification defaults
   static const int userFirstTierFreq = 1;
   static const int userSecondTierFreq = 1;
   static const int userThirdTierFreq = 1;
 
-  // Default messages
   static const String defaultClientMessage = 'عزيزي العميل {clientName}، تنتهي صلاحية تأشيرتك قريباً. يرجى التواصل معنا.';
   static const String defaultUserMessage = 'تنبيه: ينتهي حسابك قريباً. يرجى التجديد.';
 }
 
-// core/constants/firebase_constants.dart
 class FirebaseConstants {
   static const String usersCollection = 'users';
   static const String clientsCollection = 'clients';
@@ -45,7 +39,6 @@ class FirebaseConstants {
   static const String imagesStorage = 'images';
 }
 
-// core/constants/route_constants.dart
 class RouteConstants {
   static const String login = '/';
   static const String adminDashboard = '/admin_dashboard';
@@ -61,9 +54,7 @@ class RouteConstants {
   static const String userSettings = '/user/settings';
 }
 
-// core/constants/message_templates.dart
 class MessageTemplates {
-  // Client notification messages
   static const Map<String, String> clientMessages = {
     'tier1': 'تنبيه: عزيزي العميل {clientName}، تنتهي صلاحية تأشيرتك خلال {daysRemaining} أيام. يرجى التواصل معنا.',
     'tier2': 'تحذير: عزيزي العميل {clientName}، تنتهي صلاحية تأشيرتك خلال {daysRemaining} أيام. يرجى التواصل معنا فوراً.',
@@ -71,7 +62,6 @@ class MessageTemplates {
     'expired': 'عزيزي العميل {clientName}، انتهت صلاحية تأشيرتك. يجب مراجعتنا فوراً.',
   };
 
-  // User validation messages
   static const Map<String, String> userMessages = {
     'tier1': 'تنبيه: ينتهي حسابك خلال {daysRemaining} أيام. يرجى التجديد.',
     'tier2': 'تحذير: ينتهي حسابك خلال {daysRemaining} أيام. يرجى التجديد فوراً.',
@@ -81,7 +71,6 @@ class MessageTemplates {
     'unfreeze_notification': 'تم إلغاء تجميد حسابك. يمكنك الآن استخدام النظام.',
   };
 
-  // WhatsApp default messages
   static const Map<String, String> whatsappMessages = {
     'client_default': 'عزيزي العميل {clientName}، تنتهي صلاحية تأشيرتك قريباً. يرجى التواصل معنا.',
     'client_urgent': 'عاجل: عزيزي العميل {clientName}، تنتهي صلاحية تأشيرتك خلال {daysRemaining} أيام.',
@@ -89,7 +78,6 @@ class MessageTemplates {
     'admin_broadcast': 'إشعار عام من إدارة النظام: {message}',
   };
 
-  // Helper method to format message with variables
   static String formatMessage(String template, Map<String, String> variables) {
     String formatted = template;
     variables.forEach((key, value) {
@@ -99,7 +87,6 @@ class MessageTemplates {
   }
 }
 
-// core/utils/date_utils.dart
 String formatArabicDate(DateTime date) {
   try {
     final formatter = DateFormat('yyyy/MM/dd', 'ar');
@@ -125,7 +112,6 @@ String formatTimeAgo(DateTime date) {
   }
 }
 
-// core/utils/validation_utils.dart
 class ValidationUtils {
   static String? validateRequired(String? value) {
     if (value == null || value.trim().isEmpty) {
@@ -159,7 +145,7 @@ class ValidationUtils {
 
   static String? validatePhone(String? value, PhoneCountry country) {
     if (value == null || value.trim().isEmpty) {
-      return null; // Optional field
+      return null;
     }
 
     final cleanedValue = value.replaceAll(RegExp(r'[^\d]'), '');
@@ -179,7 +165,7 @@ class ValidationUtils {
 
   static String? validateEmail(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return null; // Optional field
+      return null;
     }
 
     if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
@@ -190,7 +176,6 @@ class ValidationUtils {
   }
 }
 
-// core/utils/status_calculator.dart
 class StatusCalculator {
   static ClientStatus calculateStatus(DateTime entryDate, {
     int greenDays = 30,
@@ -206,13 +191,13 @@ class StatusCalculator {
     } else if (daysRemaining >= 0) {
       return ClientStatus.red;
     } else {
-      return ClientStatus.red; // Expired
+      return ClientStatus.red;
     }
   }
 
   static int calculateDaysRemaining(DateTime entryDate) {
     final now = DateTime.now();
-    final visaExpiry = entryDate.add(Duration(days: 90)); // 90-day visa
+    final visaExpiry = entryDate.add(Duration(days: 90));
     return visaExpiry.difference(now).inDays;
   }
 
@@ -243,7 +228,6 @@ class StatusCalculator {
   }
 }
 
-// core/theme/app_theme.dart
 class AppTheme {
   static ThemeData get lightTheme {
     return ThemeData(
@@ -281,7 +265,6 @@ class AppTheme {
   }
 }
 
-// core/widgets/custom_text_field.dart
 class CustomTextField extends StatefulWidget {
   final TextEditingController controller;
   final String label;
@@ -319,10 +302,10 @@ class _CustomTextFieldState extends State<CustomTextField> {
       keyboardType: widget.keyboardType,
       maxLines: widget.isPassword ? 1 : widget.maxLines,
       enabled: widget.enabled,
-      textDirection: ui.TextDirection.rtl, // FIXED: Use ui.TextDirection.rtl
+      textDirection: ui.TextDirection.rtl,
       decoration: InputDecoration(
         labelText: widget.label,
-        prefixIcon: widget.icon != null ? Icon(widget.icon!) : null, // FIXED: Added null assertion
+        prefixIcon: widget.icon != null ? Icon(widget.icon!) : null,
         suffixIcon: widget.isPassword
             ? IconButton(
           icon: Icon(_obscureText ? Icons.visibility : Icons.visibility_off),
@@ -358,7 +341,6 @@ class _CustomTextFieldState extends State<CustomTextField> {
   }
 }
 
-// core/widgets/status_card.dart
 class StatusCard extends StatelessWidget {
   final ClientStatus status;
   final int daysRemaining;
@@ -412,7 +394,6 @@ class StatusCard extends StatelessWidget {
   }
 }
 
-// core/widgets/notification_card.dart
 class NotificationCard extends StatelessWidget {
   final NotificationModel notification;
   final VoidCallback? onMarkAsRead;
@@ -531,7 +512,6 @@ class NotificationCard extends StatelessWidget {
   }
 }
 
-// core/widgets/user_card.dart
 class UserCard extends StatelessWidget {
   final UserModel user;
   final VoidCallback? onEdit;
@@ -786,13 +766,13 @@ class UserCard extends StatelessWidget {
   }
 }
 
-// core/widgets/client_card.dart
 class ClientCard extends StatelessWidget {
   final ClientModel client;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
   final Function(ClientStatus)? onStatusChange;
   final VoidCallback? onViewImages;
+  final String? createdByName;
 
   const ClientCard({
     Key? key,
@@ -801,6 +781,7 @@ class ClientCard extends StatelessWidget {
     this.onDelete,
     this.onStatusChange,
     this.onViewImages,
+    this.createdByName,
   }) : super(key: key);
 
   @override
@@ -815,9 +796,33 @@ class ClientCard extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: Text(
-                    client.clientName,
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        client.clientName,
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      if (createdByName != null) ...[
+                        SizedBox(height: 4),
+                        Container(
+                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.blue.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.blue.shade200),
+                          ),
+                          child: Text(
+                            'بواسطة: $createdByName',
+                            style: TextStyle(
+                              fontSize: 10,
+                              color: Colors.blue.shade700,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
                 StatusCard(
@@ -980,7 +985,6 @@ class ClientCard extends StatelessWidget {
         country: client.phoneCountry,
       );
     } catch (e) {
-      // Handle error silently
     }
   }
 
@@ -1008,7 +1012,6 @@ class ClientCard extends StatelessWidget {
   }
 }
 
-// core/widgets/image_viewer.dart
 class ImageViewer extends StatefulWidget {
   final List<String> imageUrls;
   final int initialIndex;
@@ -1058,18 +1061,21 @@ class _ImageViewerState extends State<ImageViewer> {
         },
         itemBuilder: (context, index) {
           return Center(
-            child: CachedNetworkImage(
-              imageUrl: widget.imageUrls[index],
-              placeholder: (context, url) => SpinKitFadingCircle(
-                color: Colors.white,
-                size: 50.0,
+            child: GestureDetector(
+              onTap: () => _downloadImage(context, widget.imageUrls[index]),
+              child: CachedNetworkImage(
+                imageUrl: widget.imageUrls[index],
+                placeholder: (context, url) => SpinKitFadingCircle(
+                  color: Colors.white,
+                  size: 50.0,
+                ),
+                errorWidget: (context, url, error) => Icon(
+                  Icons.error,
+                  color: Colors.white,
+                  size: 50,
+                ),
+                fit: BoxFit.contain,
               ),
-              errorWidget: (context, url, error) => Icon(
-                Icons.error,
-                color: Colors.white,
-                size: 50,
-              ),
-              fit: BoxFit.contain,
             ),
           );
         },
@@ -1079,10 +1085,10 @@ class _ImageViewerState extends State<ImageViewer> {
 
   void _downloadImage(BuildContext context, String imageUrl) async {
     try {
-      final uri = Uri.parse(imageUrl);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      }
+      await ImageService.downloadImage(imageUrl);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('تم فتح الصورة للتحميل')),
+      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('خطأ في تحميل الصورة')),
@@ -1094,5 +1100,288 @@ class _ImageViewerState extends State<ImageViewer> {
   void dispose() {
     _pageController.dispose();
     super.dispose();
+  }
+}
+
+class FilterBottomSheet extends StatefulWidget {
+  final ClientFilter currentFilter;
+  final List<UserModel> users;
+  final Function(ClientFilter) onApplyFilter;
+
+  const FilterBottomSheet({
+    Key? key,
+    required this.currentFilter,
+    required this.users,
+    required this.onApplyFilter,
+  }) : super(key: key);
+
+  @override
+  State<FilterBottomSheet> createState() => _FilterBottomSheetState();
+}
+
+class _FilterBottomSheetState extends State<FilterBottomSheet> {
+  late ClientFilter _tempFilter;
+
+  @override
+  void initState() {
+    super.initState();
+    _tempFilter = widget.currentFilter;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Text(
+                'تصفية العملاء',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              Spacer(),
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    _tempFilter = ClientFilter();
+                  });
+                },
+                child: Text('مسح الكل'),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+          
+          if (widget.users.isNotEmpty) ...[
+            Text('تصفية حسب المستخدم:', style: TextStyle(fontWeight: FontWeight.w600)),
+            SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              value: _tempFilter.userFilter,
+              decoration: InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: 'اختر المستخدم',
+              ),
+              items: [
+                DropdownMenuItem<String>(value: null, child: Text('جميع المستخدمين')),
+                ...widget.users.map((user) => DropdownMenuItem<String>(
+                  value: user.id,
+                  child: Text(user.name),
+                )),
+              ],
+              onChanged: (value) {
+                setState(() {
+                  _tempFilter = _tempFilter.copyWith(userFilter: value);
+                });
+              },
+            ),
+            SizedBox(height: 16),
+          ],
+
+          Text('تصفية حسب الحالة:', style: TextStyle(fontWeight: FontWeight.w600)),
+          SizedBox(height: 8),
+          DropdownButtonFormField<ClientStatus>(
+            value: _tempFilter.statusFilter,
+            decoration: InputDecoration(
+              border: OutlineInputBorder(),
+              hintText: 'اختر الحالة',
+            ),
+            items: [
+              DropdownMenuItem<ClientStatus>(value: null, child: Text('جميع الحالات')),
+              DropdownMenuItem<ClientStatus>(value: ClientStatus.green, child: Text('آمن')),
+              DropdownMenuItem<ClientStatus>(value: ClientStatus.yellow, child: Text('تحذير')),
+              DropdownMenuItem<ClientStatus>(value: ClientStatus.red, child: Text('خطر')),
+              DropdownMenuItem<ClientStatus>(value: ClientStatus.white, child: Text('خرج')),
+            ],
+            onChanged: (value) {
+              setState(() {
+                _tempFilter = _tempFilter.copyWith(statusFilter: value);
+              });
+            },
+          ),
+          SizedBox(height: 16),
+
+          Text('تصفية حسب نوع التأشيرة:', style: TextStyle(fontWeight: FontWeight.w600)),
+          SizedBox(height: 8),
+          DropdownButtonFormField<VisaType>(
+            value: _tempFilter.visaTypeFilter,
+            decoration: InputDecoration(
+              border: OutlineInputBorder(),
+              hintText: 'اختر نوع التأشيرة',
+            ),
+            items: [
+              DropdownMenuItem<VisaType>(value: null, child: Text('جميع الأنواع')),
+              DropdownMenuItem<VisaType>(value: VisaType.visit, child: Text('زيارة')),
+              DropdownMenuItem<VisaType>(value: VisaType.work, child: Text('عمل')),
+              DropdownMenuItem<VisaType>(value: VisaType.umrah, child: Text('عمرة')),
+              DropdownMenuItem<VisaType>(value: VisaType.hajj, child: Text('حج')),
+            ],
+            onChanged: (value) {
+              setState(() {
+                _tempFilter = _tempFilter.copyWith(visaTypeFilter: value);
+              });
+            },
+          ),
+          SizedBox(height: 24),
+
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('إلغاء'),
+                ),
+              ),
+              SizedBox(width: 16),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    widget.onApplyFilter(_tempFilter);
+                    Navigator.pop(context);
+                  },
+                  child: Text('تطبيق'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class NotificationDropdown extends StatelessWidget {
+  final List<NotificationModel> notifications;
+  final Function(String) onMarkAsRead;
+  final VoidCallback onViewAll;
+
+  const NotificationDropdown({
+    Key? key,
+    required this.notifications,
+    required this.onMarkAsRead,
+    required this.onViewAll,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final unreadCount = notifications.where((n) => !n.isRead).length;
+    
+    return PopupMenuButton<String>(
+      icon: Stack(
+        children: [
+          Icon(Icons.notifications),
+          if (unreadCount > 0)
+            Positioned(
+              right: 0,
+              top: 0,
+              child: Container(
+                padding: EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: Colors.red,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                constraints: BoxConstraints(
+                  minWidth: 16,
+                  minHeight: 16,
+                ),
+                child: Text(
+                  '$unreadCount',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+        ],
+      ),
+      itemBuilder: (context) {
+        if (notifications.isEmpty) {
+          return [
+            PopupMenuItem<String>(
+              value: 'empty',
+              child: Text('لا توجد إشعارات'),
+            ),
+          ];
+        }
+
+        final recentNotifications = notifications.take(5).toList();
+        
+        return [
+          ...recentNotifications.map((notification) => PopupMenuItem<String>(
+            value: notification.id,
+            child: Container(
+              width: 300,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          notification.title,
+                          style: TextStyle(
+                            fontWeight: notification.isRead ? FontWeight.normal : FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (!notification.isRead)
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: Colors.blue,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                    ],
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    notification.message,
+                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    formatTimeAgo(notification.createdAt),
+                    style: TextStyle(fontSize: 10, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+          )),
+          PopupMenuDivider(),
+          PopupMenuItem<String>(
+            value: 'view_all',
+            child: Row(
+              children: [
+                Icon(Icons.list, size: 16),
+                SizedBox(width: 8),
+                Text('عرض جميع الإشعارات'),
+              ],
+            ),
+          ),
+        ];
+      },
+      onSelected: (value) {
+        if (value == 'view_all') {
+          onViewAll();
+        } else if (value != 'empty') {
+          onMarkAsRead(value);
+        }
+      },
+    );
   }
 }

@@ -4,16 +4,17 @@ import 'services.dart';
 import 'core.dart';
 import 'dart:io';
 
-// controllers/auth_controller.dart
 class AuthController extends ChangeNotifier {
   UserModel? _currentUser;
   bool _isLoading = false;
   bool _rememberMe = false;
+  bool _biometricEnabled = false;
 
   UserModel? get currentUser => _currentUser;
   bool get isLoading => _isLoading;
   bool get isLoggedIn => _currentUser != null;
   bool get rememberMe => _rememberMe;
+  bool get biometricEnabled => _biometricEnabled;
 
   set rememberMe(bool value) {
     _rememberMe = value;
@@ -25,14 +26,13 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<void> _initializeAuth() async {
-    // Check if user should be auto-logged in
     final autoLoginUser = await AuthService.checkAutoLogin();
     if (autoLoginUser != null) {
       _currentUser = autoLoginUser;
+      _biometricEnabled = await BiometricService.isBiometricEnabled(_currentUser!.id);
       notifyListeners();
     }
     
-    // Load remember me preference
     _rememberMe = await AuthService.shouldAutoLogin();
     notifyListeners();
   }
@@ -44,8 +44,9 @@ class AuthController extends ChangeNotifier {
     try {
       _currentUser = await AuthService.login(username, password);
       
-      // Save credentials if remember me is checked
       await AuthService.saveCredentials(username, password, _rememberMe);
+      
+      _biometricEnabled = await BiometricService.isBiometricEnabled(_currentUser!.id);
       
       _isLoading = false;
       notifyListeners();
@@ -57,9 +58,53 @@ class AuthController extends ChangeNotifier {
     }
   }
 
+  Future<bool> loginWithBiometric(String username) async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      _currentUser = await AuthService.loginWithBiometric(username);
+      if (_currentUser != null) {
+        _biometricEnabled = true;
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      } else {
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<void> enableBiometric() async {
+    if (_currentUser != null) {
+      await BiometricService.enableBiometric(_currentUser!.id);
+      _biometricEnabled = true;
+      notifyListeners();
+    }
+  }
+
+  Future<void> disableBiometric() async {
+    if (_currentUser != null) {
+      await BiometricService.disableBiometric(_currentUser!.id);
+      _biometricEnabled = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> checkBiometricAvailability() async {
+    return await BiometricService.isBiometricAvailable();
+  }
+
   Future<void> logout() async {
     await AuthService.logout();
     _currentUser = null;
+    _biometricEnabled = false;
     notifyListeners();
   }
 
@@ -68,18 +113,19 @@ class AuthController extends ChangeNotifier {
   }
 }
 
-// controllers/client_controller.dart
 class ClientController extends ChangeNotifier {
   List<ClientModel> _clients = [];
   List<ClientModel> _filteredClients = [];
+  List<UserModel> _users = [];
   bool _isLoading = false;
-  String _searchQuery = '';
+  ClientFilter _currentFilter = ClientFilter();
 
-  List<ClientModel> get clients => _filteredClients.isEmpty && _searchQuery.isEmpty 
+  List<ClientModel> get clients => _filteredClients.isEmpty && !_currentFilter.hasActiveFilters 
       ? _clients 
       : _filteredClients;
   bool get isLoading => _isLoading;
-  String get searchQuery => _searchQuery;
+  ClientFilter get currentFilter => _currentFilter;
+  List<UserModel> get users => _users;
 
   Future<void> loadClients(String userId, {bool isAdmin = false}) async {
     _isLoading = true;
@@ -88,18 +134,17 @@ class ClientController extends ChangeNotifier {
     try {
       if (isAdmin) {
         _clients = await DatabaseService.getAllClients();
+        _users = await DatabaseService.getAllUsers();
       } else {
         _clients = await DatabaseService.getClientsByUser(userId);
       }
       
-      // Get admin settings for status calculation
       final settings = await DatabaseService.getAdminSettings();
       final statusSettings = settings['clientStatusSettings'] ?? {};
       final greenDays = statusSettings['greenDays'] ?? 30;
       final yellowDays = statusSettings['yellowDays'] ?? 30;
       final redDays = statusSettings['redDays'] ?? 1;
       
-      // Update status for all clients
       for (int i = 0; i < _clients.length; i++) {
         final updatedClient = _clients[i].copyWith(
           status: StatusCalculator.calculateStatus(
@@ -113,12 +158,7 @@ class ClientController extends ChangeNotifier {
         _clients[i] = updatedClient;
       }
 
-      // Apply current search if any
-      if (_searchQuery.isNotEmpty) {
-        await searchClients(_searchQuery, userId, isAdmin: isAdmin);
-      } else {
-        _filteredClients = [];
-      }
+      await _applyCurrentFilter(userId, isAdmin: isAdmin);
 
       _isLoading = false;
       notifyListeners();
@@ -129,25 +169,55 @@ class ClientController extends ChangeNotifier {
     }
   }
 
-  Future<void> searchClients(String query, String userId, {bool isAdmin = false}) async {
-    _searchQuery = query;
-    
-    if (query.isEmpty) {
-      _filteredClients = [];
-    } else {
-      try {
-        _filteredClients = await DatabaseService.searchClients(userId, query, isAdmin: isAdmin);
-      } catch (e) {
-        _filteredClients = [];
-        throw e;
+  Future<void> applyFilter(ClientFilter filter, String userId, {bool isAdmin = false}) async {
+    _currentFilter = filter;
+    await _applyCurrentFilter(userId, isAdmin: isAdmin);
+    notifyListeners();
+  }
+
+  Future<void> _applyCurrentFilter(String userId, {bool isAdmin = false}) async {
+    try {
+      _filteredClients = await DatabaseService.getFilteredClients(
+        userId: isAdmin ? null : userId,
+        isAdmin: isAdmin,
+        filterByUser: _currentFilter.userFilter,
+        filterByStatus: _currentFilter.statusFilter,
+        filterByVisaType: _currentFilter.visaTypeFilter,
+        startDate: _currentFilter.startDate,
+        endDate: _currentFilter.endDate,
+      );
+
+      if (_currentFilter.searchQuery != null && _currentFilter.searchQuery!.isNotEmpty) {
+        final searchLower = _currentFilter.searchQuery!.toLowerCase();
+        _filteredClients = _filteredClients.where((client) {
+          final name = client.clientName.toLowerCase();
+          final phone = client.clientPhone;
+          final secondPhone = client.secondPhone ?? '';
+          
+          return name.contains(searchLower) ||
+              phone.contains(_currentFilter.searchQuery!) ||
+              secondPhone.contains(_currentFilter.searchQuery!);
+        }).toList();
       }
+    } catch (e) {
+      _filteredClients = [];
     }
-    
+  }
+
+  void clearFilter() {
+    _currentFilter = ClientFilter();
+    _filteredClients = [];
+    notifyListeners();
+  }
+
+  Future<void> searchClients(String query, String userId, {bool isAdmin = false}) async {
+    _currentFilter = _currentFilter.copyWith(searchQuery: query);
+    await _applyCurrentFilter(userId, isAdmin: isAdmin);
     notifyListeners();
   }
 
   void clearSearch() {
-    _searchQuery = '';
+    _currentFilter = _currentFilter.copyWith(searchQuery: '');
     _filteredClients = [];
     notifyListeners();
   }
@@ -156,21 +226,11 @@ class ClientController extends ChangeNotifier {
     try {
       await DatabaseService.saveClient(client, images);
       
-      // Add to local list for immediate UI update
       _clients.insert(0, client);
       
-      // Apply search filter if active
-      if (_searchQuery.isNotEmpty) {
-        final name = client.clientName.toLowerCase();
-        final phone = client.clientPhone;
-        final secondPhone = client.secondPhone ?? '';
-        final searchLower = _searchQuery.toLowerCase();
-        
-        if (name.contains(searchLower) || 
-            phone.contains(_searchQuery) || 
-            secondPhone.contains(_searchQuery)) {
-          _filteredClients.insert(0, client);
-        }
+      if (_currentFilter.hasActiveFilters) {
+        final authController = _currentFilter.userFilter ?? client.createdBy;
+        await _applyCurrentFilter(authController);
       }
       
       notifyListeners();
@@ -183,13 +243,11 @@ class ClientController extends ChangeNotifier {
     try {
       await DatabaseService.saveClient(client, images);
       
-      // Update local list
       final index = _clients.indexWhere((c) => c.id == client.id);
       if (index != -1) {
         _clients[index] = client;
       }
       
-      // Update filtered list if needed
       final filteredIndex = _filteredClients.indexWhere((c) => c.id == client.id);
       if (filteredIndex != -1) {
         _filteredClients[filteredIndex] = client;
@@ -205,7 +263,6 @@ class ClientController extends ChangeNotifier {
     try {
       await DatabaseService.updateClientStatus(clientId, status);
       
-      // Update local lists
       final index = _clients.indexWhere((client) => client.id == clientId);
       if (index != -1) {
         _clients[index] = _clients[index].copyWith(
@@ -232,7 +289,6 @@ class ClientController extends ChangeNotifier {
     try {
       await DatabaseService.deleteClient(clientId);
       
-      // Remove from local lists
       _clients.removeWhere((client) => client.id == clientId);
       _filteredClients.removeWhere((client) => client.id == clientId);
       
@@ -260,6 +316,15 @@ class ClientController extends ChangeNotifier {
     ).toList();
   }
 
+  String? getUserNameById(String userId) {
+    try {
+      final user = _users.firstWhere((u) => u.id == userId);
+      return user.name;
+    } catch (e) {
+      return null;
+    }
+  }
+
   int getClientsCount() => _clients.length;
   
   int getActiveClientsCount() => _clients.where((c) => !c.hasExited).length;
@@ -267,7 +332,6 @@ class ClientController extends ChangeNotifier {
   int getExitedClientsCount() => _clients.where((c) => c.hasExited).length;
 }
 
-// controllers/user_controller.dart
 class UserController extends ChangeNotifier {
   List<UserModel> _users = [];
   bool _isLoading = false;
@@ -440,7 +504,6 @@ class UserController extends ChangeNotifier {
   }
 }
 
-// controllers/notification_controller.dart
 class NotificationController extends ChangeNotifier {
   List<NotificationModel> _notifications = [];
   bool _isLoading = false;
@@ -454,7 +517,15 @@ class NotificationController extends ChangeNotifier {
 
     try {
       if (isAdmin) {
-        _notifications = await DatabaseService.getAllNotifications();
+        final settings = await DatabaseService.getAdminSettings();
+        final adminFilters = settings['adminFilters'] ?? {};
+        final showOnlyMyNotifications = adminFilters['showOnlyMyNotifications'] ?? false;
+        
+        if (showOnlyMyNotifications) {
+          _notifications = await DatabaseService.getNotificationsByUser(userId);
+        } else {
+          _notifications = await DatabaseService.getAllNotifications();
+        }
       } else {
         _notifications = await DatabaseService.getNotificationsByUser(userId);
       }
@@ -565,6 +636,14 @@ class NotificationController extends ChangeNotifier {
 
       await DatabaseService.saveNotification(notification);
       _notifications.insert(0, notification);
+      
+      await NotificationService.showNotification(
+        id: notification.hashCode,
+        title: notification.title,
+        body: notification.message,
+        payload: notification.id,
+      );
+      
       notifyListeners();
     } catch (e) {
       throw e;
@@ -606,7 +685,6 @@ class NotificationController extends ChangeNotifier {
     return NotificationPriority.low;
   }
 
-  // Helper methods for filtering notifications
   List<NotificationModel> getClientNotifications() {
     return _notifications.where((n) => n.type == NotificationType.clientExpiring).toList();
   }
@@ -624,7 +702,6 @@ class NotificationController extends ChangeNotifier {
   }
 }
 
-// controllers/settings_controller.dart
 class SettingsController extends ChangeNotifier {
   Map<String, dynamic> _adminSettings = {};
   Map<String, dynamic> _userSettings = {};
@@ -718,6 +795,19 @@ class SettingsController extends ChangeNotifier {
       _adminSettings['whatsappMessages'] = {
         'clientMessage': clientMessage,
         'userMessage': userMessage,
+      };
+      await DatabaseService.saveAdminSettings(_adminSettings);
+      notifyListeners();
+    } catch (e) {
+      throw e;
+    }
+  }
+
+  Future<void> updateAdminFilters(bool showOnlyMyClients, bool showOnlyMyNotifications) async {
+    try {
+      _adminSettings['adminFilters'] = {
+        'showOnlyMyClients': showOnlyMyClients,
+        'showOnlyMyNotifications': showOnlyMyNotifications,
       };
       await DatabaseService.saveAdminSettings(_adminSettings);
       notifyListeners();

@@ -1,4 +1,3 @@
-// models/user_model.dart
 enum UserRole { admin, user, agency }
 
 class UserModel {
@@ -74,7 +73,6 @@ class UserModel {
   }
 }
 
-// models/client_model.dart
 enum PhoneCountry { saudi, yemen }
 enum VisaType { visit, work, umrah, hajj }
 enum ClientStatus { green, yellow, red, white }
@@ -83,14 +81,14 @@ class ClientModel {
   final String id;
   final String clientName;
   final String clientPhone;
-  final String? secondPhone; // Added second phone number
+  final String? secondPhone;
   final PhoneCountry phoneCountry;
   final VisaType visaType;
   final String? agentName;
   final String? agentPhone;
   final DateTime entryDate;
   final String notes;
-  final List<String> imageUrls; // Changed from single URLs to list
+  final List<String> imageUrls;
   final ClientStatus status;
   final int daysRemaining;
   final bool hasExited;
@@ -210,7 +208,6 @@ class ClientModel {
   }
 }
 
-// models/notification_model.dart
 enum NotificationType { clientExpiring, userValidationExpiring }
 enum NotificationPriority { high, medium, low }
 
@@ -278,7 +275,6 @@ class NotificationModel {
   }
 }
 
-// models/settings_model.dart
 class StatusSettings {
   final int greenDays;
   final int yellowDays;
@@ -368,5 +364,54 @@ class NotificationSettings {
       clientWhatsAppMessage: map['clientWhatsAppMessage'] ?? '',
       userWhatsAppMessage: map['userWhatsAppMessage'] ?? '',
     );
+  }
+}
+
+class ClientFilter {
+  final String? userFilter;
+  final ClientStatus? statusFilter;
+  final VisaType? visaTypeFilter;
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final String? searchQuery;
+
+  ClientFilter({
+    this.userFilter,
+    this.statusFilter,
+    this.visaTypeFilter,
+    this.startDate,
+    this.endDate,
+    this.searchQuery,
+  });
+
+  ClientFilter copyWith({
+    String? userFilter,
+    ClientStatus? statusFilter,
+    VisaType? visaTypeFilter,
+    DateTime? startDate,
+    DateTime? endDate,
+    String? searchQuery,
+  }) {
+    return ClientFilter(
+      userFilter: userFilter ?? this.userFilter,
+      statusFilter: statusFilter ?? this.statusFilter,
+      visaTypeFilter: visaTypeFilter ?? this.visaTypeFilter,
+      startDate: startDate ?? this.startDate,
+      endDate: endDate ?? this.endDate,
+      searchQuery: searchQuery ?? this.searchQuery,
+    );
+  }
+
+  bool get hasActiveFilters {
+    return userFilter != null ||
+        statusFilter != null ||
+        visaTypeFilter != null ||
+        startDate != null ||
+        endDate != null ||
+        (searchQuery != null && searchQuery!.isNotEmpty);
+  }
+
+  ClientFilter clear() {
+    return ClientFilter();
   }
 }
