@@ -5,12 +5,17 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:crypto/crypto.dart';
 import 'package:cross_file/cross_file.dart';
+import 'package:dio/dio.dart';
+import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
 import 'dart:typed_data';
 import 'models.dart';
 import 'core.dart';
+import 'biometrics_service.dart';
 
 // services/auth_service.dart
 class AuthService {
@@ -53,6 +58,12 @@ class AuthService {
     } catch (e) {
       throw Exception(e.toString());
     }
+  }
+
+  static Future<bool> authenticateWithBiometrics() async {
+    return await BiometricsService.authenticate(
+      localizedReason: 'استخدم البصمة للدخول إلى التطبيق',
+    );
   }
 
   static Future<void> saveCredentials(String username, String password, bool rememberMe) async {
@@ -112,10 +123,8 @@ class AuthService {
     return digest.toString();
   }
 
-  // Add method to create default admin
   static Future<void> createDefaultAdmin() async {
     try {
-      // Check if admin already exists
       final querySnapshot = await _firestore
           .collection(FirebaseConstants.usersCollection)
           .where('role', isEqualTo: 'admin')
@@ -123,18 +132,17 @@ class AuthService {
           .get();
 
       if (querySnapshot.docs.isEmpty) {
-        // Create default admin user
         final adminUser = UserModel(
           id: 'admin_${DateTime.now().millisecondsSinceEpoch}',
           username: 'admin',
-          password: _hashPassword('admin123'), // Change this password!
+          password: _hashPassword('admin123'),
           role: UserRole.admin,
           name: 'مدير النظام',
           phone: '966500000000',
           email: 'admin@example.com',
           isActive: true,
           isFrozen: false,
-          validationEndDate: DateTime.now().add(Duration(days: 365 * 10)), // 10 years
+          validationEndDate: DateTime.now().add(Duration(days: 365 * 10)),
           createdAt: DateTime.now(),
           createdBy: 'system',
         );
@@ -170,8 +178,22 @@ class DatabaseService {
         imageUrls = await ImageService.uploadImages(images, client.id);
       }
 
+      // Get creator name
+      String? createdByName;
+      if (client.createdByName == null) {
+        final userDoc = await _firestore
+            .collection(FirebaseConstants.usersCollection)
+            .doc(client.createdBy)
+            .get();
+        
+        if (userDoc.exists) {
+          createdByName = userDoc.data()?['name'] ?? 'Unknown';
+        }
+      }
+
       final updatedClient = client.copyWith(
         imageUrls: [...client.imageUrls, ...imageUrls],
+        createdByName: createdByName ?? client.createdByName,
       );
 
       await _firestore
@@ -183,21 +205,38 @@ class DatabaseService {
     }
   }
 
-  static Future<List<ClientModel>> getClientsByUser(String userId) async {
+  static Future<List<ClientModel>> getClientsByUser(String userId, {bool showOnlyOwnClients = false}) async {
     try {
-      final querySnapshot = await _firestore
-          .collection(FirebaseConstants.clientsCollection)
-          .where('createdBy', isEqualTo: userId)
-          .orderBy('updatedAt', descending: true)
-          .get();
+      Query query = _firestore.collection(FirebaseConstants.clientsCollection);
+      
+      if (showOnlyOwnClients) {
+        query = query.where('createdBy', isEqualTo: userId);
+      }
+      
+      final querySnapshot = await query.orderBy('updatedAt', descending: true).get();
 
-      return querySnapshot.docs
-          .map((doc) {
-        final data = doc.data();
+      List<ClientModel> clients = [];
+      
+      for (var doc in querySnapshot.docs) {
+        final data = doc.data() as Map<String, dynamic>;
         data['id'] = doc.id;
-        return ClientModel.fromMap(data);
-      })
-          .toList();
+        
+        // Get creator name if not exists
+        if (data['createdByName'] == null && data['createdBy'] != null) {
+          final userDoc = await _firestore
+              .collection(FirebaseConstants.usersCollection)
+              .doc(data['createdBy'])
+              .get();
+          
+          if (userDoc.exists) {
+            data['createdByName'] = userDoc.data()?['name'] ?? 'Unknown';
+          }
+        }
+        
+        clients.add(ClientModel.fromMap(data));
+      }
+
+      return clients;
     } catch (e) {
       throw Exception('خطأ في جلب العملاء: ${e.toString()}');
     }
@@ -210,26 +249,41 @@ class DatabaseService {
           .orderBy('updatedAt', descending: true)
           .get();
 
-      return querySnapshot.docs
-          .map((doc) {
+      List<ClientModel> clients = [];
+      
+      for (var doc in querySnapshot.docs) {
         final data = doc.data();
         data['id'] = doc.id;
-        return ClientModel.fromMap(data);
-      })
-          .toList();
+        
+        // Get creator name if not exists
+        if (data['createdByName'] == null && data['createdBy'] != null) {
+          final userDoc = await _firestore
+              .collection(FirebaseConstants.usersCollection)
+              .doc(data['createdBy'])
+              .get();
+          
+          if (userDoc.exists) {
+            data['createdByName'] = userDoc.data()?['name'] ?? 'Unknown';
+          }
+        }
+        
+        clients.add(ClientModel.fromMap(data));
+      }
+
+      return clients;
     } catch (e) {
       throw Exception('خطأ في جلب العملاء: ${e.toString()}');
     }
   }
 
-  static Future<List<ClientModel>> searchClients(String userId, String searchTerm, {bool isAdmin = false}) async {
+  static Future<List<ClientModel>> searchClients(String userId, String searchTerm, {bool isAdmin = false, bool showOnlyOwnClients = false}) async {
     try {
       List<ClientModel> allClients;
 
-      if (isAdmin) {
+      if (isAdmin && !showOnlyOwnClients) {
         allClients = await getAllClients();
       } else {
-        allClients = await getClientsByUser(userId);
+        allClients = await getClientsByUser(userId, showOnlyOwnClients: showOnlyOwnClients);
       }
 
       if (searchTerm.isEmpty) {
@@ -248,6 +302,22 @@ class DatabaseService {
       }).toList();
     } catch (e) {
       throw Exception('خطأ في البحث: ${e.toString()}');
+    }
+  }
+
+  static Future<List<ClientModel>> getFilteredClients(ClientFilter filter, String userId, {bool isAdmin = false, bool showOnlyOwnClients = false}) async {
+    try {
+      List<ClientModel> allClients;
+
+      if (isAdmin && !showOnlyOwnClients) {
+        allClients = await getAllClients();
+      } else {
+        allClients = await getClientsByUser(userId, showOnlyOwnClients: showOnlyOwnClients);
+      }
+
+      return allClients.where((client) => filter.matchesClient(client)).toList();
+    } catch (e) {
+      throw Exception('خطأ في التصفية: ${e.toString()}');
     }
   }
 
@@ -290,7 +360,6 @@ class DatabaseService {
 
   static Future<void> deleteClient(String clientId) async {
     try {
-      // Get client data to delete associated images
       final clientDoc = await _firestore
           .collection(FirebaseConstants.clientsCollection)
           .doc(clientId)
@@ -300,7 +369,6 @@ class DatabaseService {
         final clientData = clientDoc.data()!;
         final imageUrls = List<String>.from(clientData['imageUrls'] ?? []);
 
-        // Delete images from storage
         for (String imageUrl in imageUrls) {
           try {
             await ImageService.deleteImage(imageUrl);
@@ -353,6 +421,17 @@ class DatabaseService {
 
   static Future<void> deleteUser(String userId) async {
     try {
+      // Delete user's clients first
+      final clientsQuery = await _firestore
+          .collection(FirebaseConstants.clientsCollection)
+          .where('createdBy', isEqualTo: userId)
+          .get();
+      
+      for (var doc in clientsQuery.docs) {
+        await deleteClient(doc.id);
+      }
+
+      // Delete user
       await _firestore
           .collection(FirebaseConstants.usersCollection)
           .doc(userId)
@@ -410,22 +489,32 @@ class DatabaseService {
           .collection(FirebaseConstants.notificationsCollection)
           .doc(notification.id)
           .set(notification.toMap());
+      
+      // Send local notification
+      await NotificationService.showLocalNotification(
+        id: notification.hashCode,
+        title: notification.title,
+        body: notification.message,
+        payload: notification.id,
+      );
     } catch (e) {
       throw Exception('خطأ في حفظ الإشعار: ${e.toString()}');
     }
   }
 
-  static Future<List<NotificationModel>> getNotificationsByUser(String userId) async {
+  static Future<List<NotificationModel>> getNotificationsByUser(String userId, {bool showOnlyOwnNotifications = false}) async {
     try {
-      final querySnapshot = await _firestore
-          .collection(FirebaseConstants.notificationsCollection)
-          .where('targetUserId', isEqualTo: userId)
-          .orderBy('createdAt', descending: true)
-          .get();
+      Query query = _firestore.collection(FirebaseConstants.notificationsCollection);
+      
+      if (showOnlyOwnNotifications) {
+        query = query.where('targetUserId', isEqualTo: userId);
+      }
+      
+      final querySnapshot = await query.orderBy('createdAt', descending: true).get();
 
       return querySnapshot.docs
           .map((doc) {
-        final data = doc.data();
+        final data = doc.data() as Map<String, dynamic>;
         data['id'] = doc.id;
         return NotificationModel.fromMap(data);
       })
@@ -541,6 +630,10 @@ class DatabaseService {
         'clientMessage': 'عزيزي العميل {clientName}، تنتهي صلاحية تأشيرتك قريباً. يرجى التواصل معنا.',
         'userMessage': 'تنبيه: ينتهي حسابك قريباً. يرجى التجديد.',
       },
+      'displaySettings': {
+        'showOnlyOwnClients': false,
+        'showOnlyOwnNotifications': false,
+      },
     };
   }
 
@@ -561,6 +654,7 @@ class DatabaseService {
         'notifications': true,
         'whatsapp': true,
         'autoSchedule': true,
+        'biometricsEnabled': false,
       },
     };
   }
@@ -569,6 +663,7 @@ class DatabaseService {
 // services/image_service.dart
 class ImageService {
   static final FirebaseStorage _storage = FirebaseStorage.instance;
+  static final Dio _dio = Dio();
 
   static Future<List<String>> uploadImages(List<File> imageFiles, String clientId) async {
     List<String> urls = [];
@@ -588,7 +683,6 @@ class ImageService {
         final downloadUrl = await snapshot.ref.getDownloadURL();
         urls.add(downloadUrl);
 
-        // Delete temporary compressed file
         try {
           await compressedFile.delete();
         } catch (e) {
@@ -602,7 +696,6 @@ class ImageService {
     return urls;
   }
 
-  // FIXED: Properly handle the return type from FlutterImageCompress
   static Future<File> _compressImage(File file) async {
     try {
       final String targetPath = '${file.parent.path}/compressed_${file.uri.pathSegments.last}';
@@ -619,11 +712,11 @@ class ImageService {
         return File(result.path);
       } else {
         print('Image compression returned null, using original file');
-        return file; // Return original if compression failed
+        return file;
       }
     } catch (e) {
       print('Image compression error: $e');
-      return file; // Return original if compression fails
+      return file;
     }
   }
 
@@ -633,6 +726,23 @@ class ImageService {
       await ref.delete();
     } catch (e) {
       print('Error deleting image: $e');
+    }
+  }
+
+  static Future<String?> downloadImage(String imageUrl, String fileName) async {
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final filePath = path.join(directory.path, 'downloads', fileName);
+      
+      // Create directory if it doesn't exist
+      final file = File(filePath);
+      await file.parent.create(recursive: true);
+
+      await _dio.download(imageUrl, filePath);
+      return filePath;
+    } catch (e) {
+      print('Error downloading image: $e');
+      return null;
     }
   }
 }
@@ -709,26 +819,21 @@ class WhatsAppService {
   }
 
   static String _formatPhoneNumber(String phone, PhoneCountry country) {
-    // Remove all non-digits
     String cleaned = phone.replaceAll(RegExp(r'[^\d]'), '');
 
     switch (country) {
       case PhoneCountry.saudi:
-      // Remove existing country code
         if (cleaned.startsWith('966')) {
           cleaned = cleaned.substring(3);
         }
-        // Remove leading zero
         if (cleaned.startsWith('0')) {
           cleaned = cleaned.substring(1);
         }
         return '966$cleaned';
       case PhoneCountry.yemen:
-      // Remove existing country code
         if (cleaned.startsWith('967')) {
           cleaned = cleaned.substring(3);
         }
-        // Remove leading zero
         if (cleaned.startsWith('0')) {
           cleaned = cleaned.substring(1);
         }
@@ -739,9 +844,68 @@ class WhatsAppService {
 
 // services/notification_service.dart
 class NotificationService {
+  static final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
+  
   static Future<void> initialize() async {
-    // Initialize local notifications if needed
-    print('Notification service initialized');
+    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const iosSettings = DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
+
+    const initSettings = InitializationSettings(
+      android: androidSettings,
+      iOS: iosSettings,
+    );
+
+    await _notifications.initialize(
+      initSettings,
+      onDidReceiveNotificationResponse: _onNotificationTapped,
+    );
+  }
+
+  static void _onNotificationTapped(NotificationResponse response) {
+    print('Notification tapped: ${response.payload}');
+  }
+
+  static Future<void> showLocalNotification({
+    required int id,
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    const androidDetails = AndroidNotificationDetails(
+      'passenger_channel',
+      'إشعارات الركاب',
+      channelDescription: 'إشعارات انتهاء تأشيرات الركاب',
+      importance: Importance.high,
+      priority: Priority.high,
+      showWhen: true,
+      sound: RawResourceAndroidNotificationSound('phone_ring'),
+      playSound: true,
+      enableVibration: true,
+    );
+
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+      sound: 'phone_ring.wav',
+    );
+
+    const notificationDetails = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    await _notifications.show(
+      id,
+      title,
+      body,
+      notificationDetails,
+      payload: payload,
+    );
   }
 
   static Future<void> scheduleClientNotification({
@@ -750,7 +914,6 @@ class NotificationService {
     required String message,
     required DateTime scheduledTime,
   }) async {
-    // Implementation for scheduling local notifications
     print('Scheduled notification for client: $clientName at $scheduledTime');
   }
 
@@ -758,7 +921,6 @@ class NotificationService {
     required String userId,
     required String message,
   }) async {
-    // Implementation for sending user validation notifications
     print('Sent validation notification to user: $userId');
   }
 }
@@ -821,7 +983,6 @@ class BackgroundService {
       final message = tier['message'] as String;
 
       if (client.daysRemaining <= days && client.daysRemaining > 0) {
-        // Create notification record
         final notification = NotificationModel(
           id: '${client.id}_${DateTime.now().millisecondsSinceEpoch}',
           type: NotificationType.clientExpiring,
@@ -837,7 +998,7 @@ class BackgroundService {
         );
 
         await DatabaseService.saveNotification(notification);
-        break; // Only schedule for the most relevant tier
+        break;
       }
     }
   }
@@ -871,7 +1032,6 @@ class BackgroundService {
       final message = tier['message'] as String;
 
       if (daysRemaining <= days && daysRemaining > 0) {
-        // Create notification record
         final notification = NotificationModel(
           id: '${user.id}_validation_${DateTime.now().millisecondsSinceEpoch}',
           type: NotificationType.userValidationExpiring,
@@ -886,7 +1046,7 @@ class BackgroundService {
         );
 
         await DatabaseService.saveNotification(notification);
-        break; // Only schedule for the most relevant tier
+        break;
       }
     }
   }
@@ -925,10 +1085,8 @@ class StatusUpdateService {
     _isRunning = true;
     print('🔄 Starting auto status update service...');
 
-    // Run immediately once
     _updateAllClientStatuses();
 
-    // Then run every 6 hours
     _timer = Timer.periodic(Duration(hours: 6), (timer) {
       _updateAllClientStatuses();
     });
@@ -965,7 +1123,6 @@ class StatusUpdateService {
             redDays: redDays,
           );
 
-          // Update if status changed or days remaining changed significantly
           if (newStatus != client.status ||
               (currentDaysRemaining - client.daysRemaining).abs() > 0) {
 

@@ -45,6 +45,9 @@ dependencies:
   # Security
   crypto: ^3.0.3
 
+  # Biometrics
+  local_auth: ^2.3.0
+
   # Timezone
   timezone: ^0.10.1
 
@@ -61,11 +64,14 @@ dependencies:
   # Permissions
   permission_handler: ^12.0.0+1
 
+  # File downloads
+  dio: ^5.7.0
+  path: ^1.9.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.1 # Optional upgrade
+  flutter_lints: ^3.0.1
 
 flutter:
   uses-material-design: true
-#          weight: 300

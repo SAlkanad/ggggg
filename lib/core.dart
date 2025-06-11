@@ -12,12 +12,10 @@ class AppConstants {
   static const String appName = 'نظام إدارة تأشيرات العمرة';
   static const String appVersion = '1.0.0';
 
-  // Default notification settings
   static const int defaultGreenDays = 30;
   static const int defaultYellowDays = 30;
   static const int defaultRedDays = 1;
 
-  // Default notification tiers
   static const int firstTierDays = 10;
   static const int firstTierFrequency = 2;
   static const int secondTierDays = 5;
@@ -25,12 +23,10 @@ class AppConstants {
   static const int thirdTierDays = 2;
   static const int thirdTierFrequency = 8;
 
-  // User notification defaults
   static const int userFirstTierFreq = 1;
   static const int userSecondTierFreq = 1;
   static const int userThirdTierFreq = 1;
 
-  // Default messages
   static const String defaultClientMessage = 'عزيزي العميل {clientName}، تنتهي صلاحية تأشيرتك قريباً. يرجى التواصل معنا.';
   static const String defaultUserMessage = 'تنبيه: ينتهي حسابك قريباً. يرجى التجديد.';
 }
@@ -63,7 +59,6 @@ class RouteConstants {
 
 // core/constants/message_templates.dart
 class MessageTemplates {
-  // Client notification messages
   static const Map<String, String> clientMessages = {
     'tier1': 'تنبيه: عزيزي العميل {clientName}، تنتهي صلاحية تأشيرتك خلال {daysRemaining} أيام. يرجى التواصل معنا.',
     'tier2': 'تحذير: عزيزي العميل {clientName}، تنتهي صلاحية تأشيرتك خلال {daysRemaining} أيام. يرجى التواصل معنا فوراً.',
@@ -71,7 +66,6 @@ class MessageTemplates {
     'expired': 'عزيزي العميل {clientName}، انتهت صلاحية تأشيرتك. يجب مراجعتنا فوراً.',
   };
 
-  // User validation messages
   static const Map<String, String> userMessages = {
     'tier1': 'تنبيه: ينتهي حسابك خلال {daysRemaining} أيام. يرجى التجديد.',
     'tier2': 'تحذير: ينتهي حسابك خلال {daysRemaining} أيام. يرجى التجديد فوراً.',
@@ -81,7 +75,6 @@ class MessageTemplates {
     'unfreeze_notification': 'تم إلغاء تجميد حسابك. يمكنك الآن استخدام النظام.',
   };
 
-  // WhatsApp default messages
   static const Map<String, String> whatsappMessages = {
     'client_default': 'عزيزي العميل {clientName}، تنتهي صلاحية تأشيرتك قريباً. يرجى التواصل معنا.',
     'client_urgent': 'عاجل: عزيزي العميل {clientName}، تنتهي صلاحية تأشيرتك خلال {daysRemaining} أيام.',
@@ -89,7 +82,6 @@ class MessageTemplates {
     'admin_broadcast': 'إشعار عام من إدارة النظام: {message}',
   };
 
-  // Helper method to format message with variables
   static String formatMessage(String template, Map<String, String> variables) {
     String formatted = template;
     variables.forEach((key, value) {
@@ -159,7 +151,7 @@ class ValidationUtils {
 
   static String? validatePhone(String? value, PhoneCountry country) {
     if (value == null || value.trim().isEmpty) {
-      return null; // Optional field
+      return null;
     }
 
     final cleanedValue = value.replaceAll(RegExp(r'[^\d]'), '');
@@ -179,7 +171,7 @@ class ValidationUtils {
 
   static String? validateEmail(String? value) {
     if (value == null || value.trim().isEmpty) {
-      return null; // Optional field
+      return null;
     }
 
     if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
@@ -206,13 +198,13 @@ class StatusCalculator {
     } else if (daysRemaining >= 0) {
       return ClientStatus.red;
     } else {
-      return ClientStatus.red; // Expired
+      return ClientStatus.red;
     }
   }
 
   static int calculateDaysRemaining(DateTime entryDate) {
     final now = DateTime.now();
-    final visaExpiry = entryDate.add(Duration(days: 90)); // 90-day visa
+    final visaExpiry = entryDate.add(Duration(days: 90));
     return visaExpiry.difference(now).inDays;
   }
 
@@ -232,13 +224,13 @@ class StatusCalculator {
   static Color getStatusColor(ClientStatus status) {
     switch (status) {
       case ClientStatus.green:
-        return Colors.green;
+        return Color(0xFF4CAF50);  // Material Green
       case ClientStatus.yellow:
-        return Colors.orange;
+        return Color(0xFFFF9800);  // Material Orange
       case ClientStatus.red:
-        return Colors.red;
+        return Color(0xFFF44336);  // Material Red
       case ClientStatus.white:
-        return Colors.grey;
+        return Color(0xFF9E9E9E);  // Material Grey
     }
   }
 }
@@ -252,21 +244,28 @@ class AppTheme {
       appBarTheme: AppBarTheme(
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
-        elevation: 0,
+        elevation: 2,
         centerTitle: true,
+        titleTextStyle: TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.blue,
           foregroundColor: Colors.white,
           elevation: 2,
+          padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
         ),
       ),
       cardTheme: CardThemeData(
-        elevation: 2,
+        elevation: 3,
+        margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
@@ -275,7 +274,13 @@ class AppTheme {
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
         ),
+        filled: true,
+        fillColor: Colors.grey.shade50,
         contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      ),
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: Colors.blue,
+        brightness: Brightness.light,
       ),
     );
   }
@@ -319,10 +324,10 @@ class _CustomTextFieldState extends State<CustomTextField> {
       keyboardType: widget.keyboardType,
       maxLines: widget.isPassword ? 1 : widget.maxLines,
       enabled: widget.enabled,
-      textDirection: ui.TextDirection.rtl, // FIXED: Use ui.TextDirection.rtl
+      textDirection: ui.TextDirection.rtl,
       decoration: InputDecoration(
         labelText: widget.label,
-        prefixIcon: widget.icon != null ? Icon(widget.icon!) : null, // FIXED: Added null assertion
+        prefixIcon: widget.icon != null ? Icon(widget.icon!) : null,
         suffixIcon: widget.isPassword
             ? IconButton(
           icon: Icon(_obscureText ? Icons.visibility : Icons.visibility_off),
@@ -516,6 +521,8 @@ class NotificationCard extends StatelessWidget {
         return Icons.person_off;
       case NotificationType.userValidationExpiring:
         return Icons.account_circle_outlined;
+      case NotificationType.adminMessage:
+        return Icons.admin_panel_settings;
     }
   }
 
@@ -643,52 +650,91 @@ class UserCard extends StatelessWidget {
             ],
 
             SizedBox(height: 12),
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 if (onViewClients != null)
-                  IconButton(
-                    icon: Icon(Icons.people, color: Colors.blue),
-                    onPressed: onViewClients,
-                    tooltip: 'عرض العملاء',
+                  _buildActionChip(
+                    icon: Icons.people,
+                    label: 'العملاء',
+                    color: Colors.blue,
+                    onPressed: onViewClients!,
                   ),
                 if (onEdit != null)
-                  IconButton(
-                    icon: Icon(Icons.edit, color: Colors.orange),
-                    onPressed: onEdit,
-                    tooltip: 'تعديل',
+                  _buildActionChip(
+                    icon: Icons.edit,
+                    label: 'تعديل',
+                    color: Colors.orange,
+                    onPressed: onEdit!,
                   ),
                 if (onSetValidation != null)
-                  IconButton(
-                    icon: Icon(Icons.date_range, color: Colors.green),
-                    onPressed: onSetValidation,
-                    tooltip: 'تحديد الصلاحية',
+                  _buildActionChip(
+                    icon: Icons.date_range,
+                    label: 'الصلاحية',
+                    color: Colors.green,
+                    onPressed: onSetValidation!,
                   ),
                 if (!user.isFrozen && onFreeze != null)
-                  IconButton(
-                    icon: Icon(Icons.block, color: Colors.red),
-                    onPressed: onFreeze,
-                    tooltip: 'تجميد',
+                  _buildActionChip(
+                    icon: Icons.block,
+                    label: 'تجميد',
+                    color: Colors.red,
+                    onPressed: onFreeze!,
                   ),
                 if (user.isFrozen && onUnfreeze != null)
-                  IconButton(
-                    icon: Icon(Icons.check_circle, color: Colors.green),
-                    onPressed: onUnfreeze,
-                    tooltip: 'إلغاء التجميد',
+                  _buildActionChip(
+                    icon: Icons.check_circle,
+                    label: 'إلغاء التجميد',
+                    color: Colors.green,
+                    onPressed: onUnfreeze!,
                   ),
                 if (onSendNotification != null)
-                  IconButton(
-                    icon: Icon(Icons.notifications, color: Colors.purple),
-                    onPressed: onSendNotification,
-                    tooltip: 'إرسال إشعار',
+                  _buildActionChip(
+                    icon: Icons.notifications,
+                    label: 'إشعار',
+                    color: Colors.purple,
+                    onPressed: onSendNotification!,
                   ),
-                Spacer(),
                 if (onDelete != null)
-                  IconButton(
-                    icon: Icon(Icons.delete, color: Colors.red),
-                    onPressed: onDelete,
-                    tooltip: 'حذف',
+                  _buildActionChip(
+                    icon: Icons.delete,
+                    label: 'حذف',
+                    color: Colors.red,
+                    onPressed: onDelete!,
                   ),
               ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionChip({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 16),
+            SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold),
             ),
           ],
         ),
@@ -815,9 +861,21 @@ class ClientCard extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: Text(
-                    client.clientName,
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        client.clientName,
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                      if (client.createdByName != null) ...[
+                        SizedBox(height: 4),
+                        Text(
+                          'أدخل بواسطة: ${client.createdByName}',
+                          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
                 StatusCard(
@@ -847,6 +905,14 @@ class ClientCard extends StatelessWidget {
                 ],
               ),
             ],
+            SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+                SizedBox(width: 4),
+                Text('تاريخ الدخول: ${formatArabicDate(client.entryDate)}'),
+              ],
+            ),
             if (client.imageUrls.isNotEmpty) ...[
               SizedBox(height: 8),
               Row(
@@ -858,11 +924,20 @@ class ClientCard extends StatelessWidget {
                   if (onViewImages != null)
                     GestureDetector(
                       onTap: onViewImages,
-                      child: Text(
-                        'عرض الصور',
-                        style: TextStyle(
-                          color: Colors.blue,
-                          decoration: TextDecoration.underline,
+                      child: Container(
+                        padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                        ),
+                        child: Text(
+                          'عرض الصور',
+                          style: TextStyle(
+                            color: Colors.blue,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
@@ -870,40 +945,77 @@ class ClientCard extends StatelessWidget {
               ),
             ],
             SizedBox(height: 12),
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 if (!client.hasExited && client.clientPhone.isNotEmpty) ...[
-                  IconButton(
-                    icon: Icon(Icons.message, color: Colors.green),
+                  _buildActionChip(
+                    icon: Icons.message,
+                    label: 'واتساب',
+                    color: Colors.green,
                     onPressed: () => _sendWhatsApp(context),
-                    tooltip: 'إرسال واتساب',
                   ),
-                  IconButton(
-                    icon: Icon(Icons.call, color: Colors.blue),
+                  _buildActionChip(
+                    icon: Icons.call,
+                    label: 'اتصال',
+                    color: Colors.blue,
                     onPressed: () => _makeCall(client.clientPhone),
-                    tooltip: 'اتصال',
                   ),
                 ],
-                Spacer(),
                 if (onEdit != null)
-                  IconButton(
-                    icon: Icon(Icons.edit, color: Colors.orange),
-                    onPressed: onEdit,
-                    tooltip: 'تعديل',
+                  _buildActionChip(
+                    icon: Icons.edit,
+                    label: 'تعديل',
+                    color: Colors.orange,
+                    onPressed: onEdit!,
                   ),
                 if (onStatusChange != null && !client.hasExited)
-                  IconButton(
-                    icon: Icon(Icons.exit_to_app, color: Colors.grey),
+                  _buildActionChip(
+                    icon: Icons.exit_to_app,
+                    label: 'خرج',
+                    color: Colors.grey,
                     onPressed: () => onStatusChange!(ClientStatus.white),
-                    tooltip: 'تحديد كخارج',
                   ),
                 if (onDelete != null)
-                  IconButton(
-                    icon: Icon(Icons.delete, color: Colors.red),
+                  _buildActionChip(
+                    icon: Icons.delete,
+                    label: 'حذف',
+                    color: Colors.red,
                     onPressed: () => _confirmDelete(context),
-                    tooltip: 'حذف',
                   ),
               ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildActionChip({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withOpacity(0.3)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 16),
+            SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold),
             ),
           ],
         ),
@@ -1045,6 +1157,10 @@ class _ImageViewerState extends State<ImageViewer> {
             icon: Icon(Icons.download),
             onPressed: () => _downloadImage(context, widget.imageUrls[_currentIndex]),
           ),
+          IconButton(
+            icon: Icon(Icons.share),
+            onPressed: () => _shareImage(context, widget.imageUrls[_currentIndex]),
+          ),
         ],
       ),
       backgroundColor: Colors.black,
@@ -1079,13 +1195,32 @@ class _ImageViewerState extends State<ImageViewer> {
 
   void _downloadImage(BuildContext context, String imageUrl) async {
     try {
+      final fileName = 'image_${DateTime.now().millisecondsSinceEpoch}.jpg';
+      final filePath = await ImageService.downloadImage(imageUrl, fileName);
+      
+      if (filePath != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('تم تحميل الصورة: $filePath')),
+        );
+      } else {
+        throw Exception('فشل في تحميل الصورة');
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('خطأ في تحميل الصورة: ${e.toString()}')),
+      );
+    }
+  }
+
+  void _shareImage(BuildContext context, String imageUrl) async {
+    try {
       final uri = Uri.parse(imageUrl);
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('خطأ في تحميل الصورة')),
+        SnackBar(content: Text('خطأ في مشاركة الصورة')),
       );
     }
   }
@@ -1094,5 +1229,190 @@ class _ImageViewerState extends State<ImageViewer> {
   void dispose() {
     _pageController.dispose();
     super.dispose();
+  }
+}
+
+// core/widgets/filter_bottom_sheet.dart
+class FilterBottomSheet extends StatefulWidget {
+  final ClientFilter currentFilter;
+  final List<String> availableUsers;
+  final Function(ClientFilter) onApplyFilter;
+
+  const FilterBottomSheet({
+    Key? key,
+    required this.currentFilter,
+    required this.availableUsers,
+    required this.onApplyFilter,
+  }) : super(key: key);
+
+  @override
+  State<FilterBottomSheet> createState() => _FilterBottomSheetState();
+}
+
+class _FilterBottomSheetState extends State<FilterBottomSheet> {
+  late ClientFilter _filter;
+
+  @override
+  void initState() {
+    super.initState();
+    _filter = widget.currentFilter;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.all(16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Text(
+                'تصفية العملاء',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              Spacer(),
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    _filter = ClientFilter();
+                  });
+                },
+                child: Text('مسح الكل'),
+              ),
+            ],
+          ),
+          SizedBox(height: 16),
+
+          // Status Filter
+          Text('الحالة:', style: TextStyle(fontWeight: FontWeight.bold)),
+          SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            children: ClientStatus.values.map((status) {
+              return FilterChip(
+                label: Text(StatusCalculator.getStatusText(status)),
+                selected: _filter.status == status,
+                onSelected: (selected) {
+                  setState(() {
+                    _filter = _filter.copyWith(
+                      status: selected ? status : null,
+                    );
+                  });
+                },
+              );
+            }).toList(),
+          ),
+          SizedBox(height: 16),
+
+          // Visa Type Filter
+          Text('نوع التأشيرة:', style: TextStyle(fontWeight: FontWeight.bold)),
+          SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            children: VisaType.values.map((type) {
+              return FilterChip(
+                label: Text(_getVisaTypeText(type)),
+                selected: _filter.visaType == type,
+                onSelected: (selected) {
+                  setState(() {
+                    _filter = _filter.copyWith(
+                      visaType: selected ? type : null,
+                    );
+                  });
+                },
+              );
+            }).toList(),
+          ),
+          SizedBox(height: 16),
+
+          // Created By Filter
+          if (widget.availableUsers.isNotEmpty) ...[
+            Text('أدخل بواسطة:', style: TextStyle(fontWeight: FontWeight.bold)),
+            SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              value: _filter.createdBy,
+              decoration: InputDecoration(
+                hintText: 'اختر المستخدم',
+                border: OutlineInputBorder(),
+              ),
+              items: [
+                DropdownMenuItem<String>(
+                  value: null,
+                  child: Text('الكل'),
+                ),
+                ...widget.availableUsers.map((user) {
+                  return DropdownMenuItem<String>(
+                    value: user,
+                    child: Text(user),
+                  );
+                }).toList(),
+              ],
+              onChanged: (value) {
+                setState(() {
+                  _filter = _filter.copyWith(createdBy: value);
+                });
+              },
+            ),
+            SizedBox(height: 16),
+          ],
+
+          // Has Images Filter
+          Row(
+            children: [
+              Text('الصور:', style: TextStyle(fontWeight: FontWeight.bold)),
+              Spacer(),
+              FilterChip(
+                label: Text('يحتوي على صور'),
+                selected: _filter.hasImages == true,
+                onSelected: (selected) {
+                  setState(() {
+                    _filter = _filter.copyWith(
+                      hasImages: selected ? true : null,
+                    );
+                  });
+                },
+              ),
+            ],
+          ),
+          SizedBox(height: 24),
+
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('إلغاء'),
+                ),
+              ),
+              SizedBox(width: 16),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    widget.onApplyFilter(_filter);
+                    Navigator.pop(context);
+                  },
+                  child: Text('تطبيق'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getVisaTypeText(VisaType type) {
+    switch (type) {
+      case VisaType.visit:
+        return 'زيارة';
+      case VisaType.work:
+        return 'عمل';
+      case VisaType.umrah:
+        return 'عمرة';
+      case VisaType.hajj:
+        return 'حج';
+    }
   }
 }
