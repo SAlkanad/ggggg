@@ -83,19 +83,18 @@ class ClientModel {
   final String id;
   final String clientName;
   final String clientPhone;
-  final String? secondPhone;
+  final String? secondPhone; // Added second phone number
   final PhoneCountry phoneCountry;
   final VisaType visaType;
   final String? agentName;
   final String? agentPhone;
   final DateTime entryDate;
   final String notes;
-  final List<String> imageUrls;
+  final List<String> imageUrls; // Changed from single URLs to list
   final ClientStatus status;
   final int daysRemaining;
   final bool hasExited;
   final String createdBy;
-  final String? createdByName; // Added for UI display
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -115,7 +114,6 @@ class ClientModel {
     required this.daysRemaining,
     this.hasExited = false,
     required this.createdBy,
-    this.createdByName,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -137,7 +135,6 @@ class ClientModel {
       'daysRemaining': daysRemaining,
       'hasExited': hasExited,
       'createdBy': createdBy,
-      'createdByName': createdByName,
       'createdAt': createdAt.millisecondsSinceEpoch,
       'updatedAt': updatedAt.millisecondsSinceEpoch,
     };
@@ -169,7 +166,6 @@ class ClientModel {
       daysRemaining: map['daysRemaining'] ?? 0,
       hasExited: map['hasExited'] ?? false,
       createdBy: map['createdBy'] ?? '',
-      createdByName: map['createdByName'],
       createdAt: DateTime.fromMillisecondsSinceEpoch(map['createdAt']),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updatedAt']),
     );
@@ -190,7 +186,6 @@ class ClientModel {
     ClientStatus? status,
     int? daysRemaining,
     bool? hasExited,
-    String? createdByName,
     DateTime? updatedAt,
   }) {
     return ClientModel(
@@ -209,7 +204,6 @@ class ClientModel {
       daysRemaining: daysRemaining ?? this.daysRemaining,
       hasExited: hasExited ?? this.hasExited,
       createdBy: this.createdBy,
-      createdByName: createdByName ?? this.createdByName,
       createdAt: this.createdAt,
       updatedAt: updatedAt ?? DateTime.now(),
     );
@@ -217,7 +211,7 @@ class ClientModel {
 }
 
 // models/notification_model.dart
-enum NotificationType { clientExpiring, userValidationExpiring, adminMessage }
+enum NotificationType { clientExpiring, userValidationExpiring }
 enum NotificationPriority { high, medium, low }
 
 class NotificationModel {
@@ -374,84 +368,5 @@ class NotificationSettings {
       clientWhatsAppMessage: map['clientWhatsAppMessage'] ?? '',
       userWhatsAppMessage: map['userWhatsAppMessage'] ?? '',
     );
-  }
-}
-
-// models/client_filter.dart
-class ClientFilter {
-  final ClientStatus? status;
-  final VisaType? visaType;
-  final PhoneCountry? phoneCountry;
-  final String? createdBy;
-  final DateTime? startDate;
-  final DateTime? endDate;
-  final bool? hasImages;
-  final String? searchQuery;
-
-  ClientFilter({
-    this.status,
-    this.visaType,
-    this.phoneCountry,
-    this.createdBy,
-    this.startDate,
-    this.endDate,
-    this.hasImages,
-    this.searchQuery,
-  });
-
-  bool matchesClient(ClientModel client) {
-    if (status != null && client.status != status) return false;
-    if (visaType != null && client.visaType != visaType) return false;
-    if (phoneCountry != null && client.phoneCountry != phoneCountry) return false;
-    if (createdBy != null && client.createdBy != createdBy) return false;
-    if (hasImages != null && (client.imageUrls.isNotEmpty != hasImages)) return false;
-    
-    if (startDate != null && client.entryDate.isBefore(startDate!)) return false;
-    if (endDate != null && client.entryDate.isAfter(endDate!)) return false;
-    
-    if (searchQuery != null && searchQuery!.isNotEmpty) {
-      final query = searchQuery!.toLowerCase();
-      if (!client.clientName.toLowerCase().contains(query) &&
-          !client.clientPhone.contains(searchQuery!) &&
-          !(client.secondPhone?.contains(searchQuery!) ?? false) &&
-          !(client.agentName?.toLowerCase().contains(query) ?? false)) {
-        return false;
-      }
-    }
-    
-    return true;
-  }
-
-  ClientFilter copyWith({
-    ClientStatus? status,
-    VisaType? visaType,
-    PhoneCountry? phoneCountry,
-    String? createdBy,
-    DateTime? startDate,
-    DateTime? endDate,
-    bool? hasImages,
-    String? searchQuery,
-  }) {
-    return ClientFilter(
-      status: status ?? this.status,
-      visaType: visaType ?? this.visaType,
-      phoneCountry: phoneCountry ?? this.phoneCountry,
-      createdBy: createdBy ?? this.createdBy,
-      startDate: startDate ?? this.startDate,
-      endDate: endDate ?? this.endDate,
-      hasImages: hasImages ?? this.hasImages,
-      searchQuery: searchQuery ?? this.searchQuery,
-    );
-  }
-
-  bool get hasActiveFilters {
-    return status != null ||
-        visaType != null ||
-        phoneCountry != null ||
-        createdBy != null ||
-        startDate != null ||
-        endDate != null ||
-        hasImages != null ||
-        (searchQuery != null && searchQuery!.isNotEmpty);
   }
 }
