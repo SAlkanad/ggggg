@@ -605,24 +605,23 @@ class ImageService {
   // FIXED: Properly handle the return type from FlutterImageCompress
   static Future<File> _compressImage(File file) async {
     try {
-      final result = await FlutterImageCompress.compressAndGetFile(
+      final String targetPath = '${file.parent.path}/compressed_${file.path.split('/').last}';
+
+      final XFile? result = await FlutterImageCompress.compressAndGetFile(
         file.absolute.path,
-        '${file.parent.path}/compressed_${file.path.split('/').last}',
+        targetPath,
         quality: 70,
         minWidth: 1024,
         minHeight: 1024,
       );
 
-      // Handle the result properly based on its actual type
-      if (result != null && result is XFile) {
+      if (result != null) {
         return File(result.path);
-      } else if (result != null) {
-        // Try to cast to File if it's already a File
-        return result as File;
       } else {
         return file; // Return original if compression failed
       }
     } catch (e) {
+      print('Image compression error: $e');
       return file; // Return original if compression fails
     }
   }

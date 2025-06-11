@@ -7,6 +7,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'firebase_options.dart';
 import 'controllers.dart';
 import 'routes.dart';
+import 'models.dart';
 import 'core.dart';
 import 'services.dart';
 import 'app_initialization_service.dart';
@@ -132,7 +133,7 @@ class PassengersApp extends StatelessWidget {
           return RouteConstants.userDashboard;
       }
     }
-    
+
     // Default to login screen
     return RouteConstants.login;
   }
