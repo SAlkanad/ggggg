@@ -143,7 +143,27 @@ class ValidationUtils {
     return null;
   }
 
-  static String? validatePhone(String? value, PhoneCountry country) {
+  static String? validateClientPhone(String? value, PhoneCountry country) {
+    if (value == null || value.trim().isEmpty) {
+      return 'رقم الهاتف الأساسي مطلوب';
+    }
+
+    final cleanedValue = value.replaceAll(RegExp(r'[^\d]'), '');
+
+    if (country == PhoneCountry.saudi) {
+      if (!RegExp(r'^(5)[0-9]{8}$').hasMatch(cleanedValue)) {
+        return 'رقم سعودي غير صحيح (يجب أن يبدأ بـ 5 ويكون 9 أرقام)';
+      }
+    } else if (country == PhoneCountry.yemen) {
+      if (!RegExp(r'^(7)[0-9]{8}$').hasMatch(cleanedValue)) {
+        return 'رقم يمني غير صحيح (يجب أن يبدأ بـ 7 ويكون 9 أرقام)';
+      }
+    }
+
+    return null;
+  }
+
+  static String? validateSecondPhone(String? value, PhoneCountry country) {
     if (value == null || value.trim().isEmpty) {
       return null;
     }
@@ -265,6 +285,38 @@ class AppTheme {
   }
 }
 
+abstract class BaseFormScreen extends StatefulWidget {
+  const BaseFormScreen({Key? key}) : super(key: key);
+}
+
+abstract class BaseFormScreenState<T extends BaseFormScreen> extends State<T> {
+  final List<TextEditingController> _controllers = [];
+  bool _isLoading = false;
+
+  void registerController(TextEditingController controller) {
+    _controllers.add(controller);
+  }
+
+  void setLoading(bool loading) {
+    if (mounted) {
+      setState(() {
+        _isLoading = loading;
+      });
+    }
+  }
+
+  bool get isLoading => _isLoading;
+
+  @override
+  void dispose() {
+    for (final controller in _controllers) {
+      controller.dispose();
+    }
+    _controllers.clear();
+    super.dispose();
+  }
+}
+
 class CustomTextField extends StatefulWidget {
   final TextEditingController controller;
   final String label;
@@ -274,6 +326,7 @@ class CustomTextField extends StatefulWidget {
   final String? Function(String?)? validator;
   final int maxLines;
   final bool enabled;
+  final Function(String)? onChanged;
 
   const CustomTextField({
     Key? key,
@@ -285,6 +338,7 @@ class CustomTextField extends StatefulWidget {
     this.validator,
     this.maxLines = 1,
     this.enabled = true,
+    this.onChanged,
   }) : super(key: key);
 
   @override
@@ -303,6 +357,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
       maxLines: widget.isPassword ? 1 : widget.maxLines,
       enabled: widget.enabled,
       textDirection: ui.TextDirection.rtl,
+      onChanged: widget.onChanged,
       decoration: InputDecoration(
         labelText: widget.label,
         prefixIcon: widget.icon != null ? Icon(widget.icon!) : null,
@@ -833,7 +888,7 @@ class ClientCard extends StatelessWidget {
             ),
             SizedBox(height: 8),
             if (client.clientPhone.isNotEmpty)
-              _buildPhoneDropdown(context),
+              _buildPhoneSection(context),
             SizedBox(height: 4),
             Row(
               children: [
@@ -871,6 +926,17 @@ class ClientCard extends StatelessWidget {
                         ),
                       ),
                     ),
+                  SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () => _downloadImages(context),
+                    child: Text(
+                      'تحميل الصور',
+                      style: TextStyle(
+                        color: Colors.green,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -889,6 +955,12 @@ class ClientCard extends StatelessWidget {
                     tooltip: 'اتصال',
                   ),
                 ],
+                if (!client.hasExited && client.secondPhone != null && client.secondPhone!.isNotEmpty)
+                  IconButton(
+                    icon: Icon(Icons.call_outlined, color: Colors.blue.shade300),
+                    onPressed: () => _makeCall(client.secondPhone!),
+                    tooltip: 'اتصال - رقم ثانوي',
+                  ),
                 Spacer(),
                 if (onEdit != null)
                   IconButton(
@@ -916,37 +988,45 @@ class ClientCard extends StatelessWidget {
     );
   }
 
-  Widget _buildPhoneDropdown(BuildContext context) {
-    List<String> phones = [client.clientPhone];
-    if (client.secondPhone != null && client.secondPhone!.isNotEmpty) {
-      phones.add(client.secondPhone!);
-    }
-
-    return PopupMenuButton<String>(
-      onSelected: (phone) => _makeCall(phone),
-      itemBuilder: (BuildContext context) {
-        return phones.map((String phone) {
-          return PopupMenuItem<String>(
-            value: phone,
-            child: Row(
-              children: [
-                Icon(Icons.phone, size: 16, color: Colors.grey),
-                SizedBox(width: 8),
-                Text(phone),
-              ],
+  Widget _buildPhoneSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.phone, size: 16, color: Colors.blue),
+            SizedBox(width: 4),
+            Text('رقم أساسي: ${client.clientPhone}'),
+            SizedBox(width: 8),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Text(
+                client.phoneCountry == PhoneCountry.saudi ? 'SA' : 'YE',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: Colors.blue.shade700,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
-          );
-        }).toList();
-      },
-      child: Row(
-        children: [
-          Icon(Icons.phone, size: 16, color: Colors.grey),
-          SizedBox(width: 4),
-          Text('الهاتف: ${client.clientPhone}'),
-          if (phones.length > 1)
-            Icon(Icons.arrow_drop_down, size: 16, color: Colors.grey),
+          ],
+        ),
+        if (client.secondPhone != null && client.secondPhone!.isNotEmpty) ...[
+          SizedBox(height: 4),
+          Row(
+            children: [
+              Icon(Icons.phone_android, size: 16, color: Colors.green),
+              SizedBox(width: 4),
+              Text('رقم ثانوي: ${client.secondPhone}'),
+            ],
+          ),
         ],
-      ),
+      ],
     );
   }
 
@@ -988,6 +1068,21 @@ class ClientCard extends StatelessWidget {
     }
   }
 
+  void _downloadImages(BuildContext context) async {
+    try {
+      for (String imageUrl in client.imageUrls) {
+        await ImageService.downloadImage(imageUrl);
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('تم فتح الصور للتحميل')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('خطأ في تحميل الصور')),
+      );
+    }
+  }
+
   void _confirmDelete(BuildContext context) {
     showDialog(
       context: context,
@@ -1015,11 +1110,13 @@ class ClientCard extends StatelessWidget {
 class ImageViewer extends StatefulWidget {
   final List<String> imageUrls;
   final int initialIndex;
+  final String? clientName;
 
   const ImageViewer({
     Key? key,
     required this.imageUrls,
     this.initialIndex = 0,
+    this.clientName,
   }) : super(key: key);
 
   @override
@@ -1047,6 +1144,10 @@ class _ImageViewerState extends State<ImageViewer> {
           IconButton(
             icon: Icon(Icons.download),
             onPressed: () => _downloadImage(context, widget.imageUrls[_currentIndex]),
+          ),
+          IconButton(
+            icon: Icon(Icons.open_in_browser),
+            onPressed: () => _openImageInBrowser(context, widget.imageUrls[_currentIndex]),
           ),
         ],
       ),
@@ -1092,6 +1193,16 @@ class _ImageViewerState extends State<ImageViewer> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('خطأ في تحميل الصورة')),
+      );
+    }
+  }
+
+  void _openImageInBrowser(BuildContext context, String imageUrl) async {
+    try {
+      await ImageService.openImageInBrowser(imageUrl);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('خطأ في فتح الصورة')),
       );
     }
   }
@@ -1158,7 +1269,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
             ],
           ),
           SizedBox(height: 16),
-          
+
           if (widget.users.isNotEmpty) ...[
             Text('تصفية حسب المستخدم:', style: TextStyle(fontWeight: FontWeight.w600)),
             SizedBox(height: 8),
@@ -1271,7 +1382,7 @@ class NotificationDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final unreadCount = notifications.where((n) => !n.isRead).length;
-    
+
     return PopupMenuButton<String>(
       icon: Stack(
         children: [
@@ -1313,7 +1424,7 @@ class NotificationDropdown extends StatelessWidget {
         }
 
         final recentNotifications = notifications.take(5).toList();
-        
+
         return [
           ...recentNotifications.map((notification) => PopupMenuItem<String>(
             value: notification.id,

@@ -10,7 +10,6 @@ import 'services.dart';
 import 'core.dart';
 import 'settings_screens.dart';
 
-// screens/auth/login_screen.dart
 class LoginScreen extends StatefulWidget {
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -20,13 +19,11 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _showBiometricButton = false;
 
   @override
   void initState() {
     super.initState();
     _loadSavedCredentials();
-    _checkBiometricAvailability();
   }
 
   Future<void> _loadSavedCredentials() async {
@@ -39,14 +36,6 @@ class _LoginScreenState extends State<LoginScreen> {
     if (credentials['password'] != null) {
       _passwordController.text = credentials['password']!;
     }
-  }
-
-  Future<void> _checkBiometricAvailability() async {
-    final authController = Provider.of<AuthController>(context, listen: false);
-    final isAvailable = await authController.checkBiometricAvailability();
-    setState(() {
-      _showBiometricButton = isAvailable && _usernameController.text.isNotEmpty;
-    });
   }
 
   @override
@@ -100,7 +89,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     label: 'اسم المستخدم',
                     icon: Icons.person,
                     validator: ValidationUtils.validateUsername,
-                    onChanged: (value) => _checkBiometricAvailability(),
+                    onChanged: (value) => authController.checkBiometricAvailability(),
                   ),
                   SizedBox(height: 16),
 
@@ -134,7 +123,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
 
-                  if (_showBiometricButton) ...[
+                  if (authController.biometricAvailable && _usernameController.text.isNotEmpty) ...[
                     SizedBox(height: 16),
                     SizedBox(
                       width: double.infinity,
@@ -242,7 +231,6 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-// screens/admin/admin_dashboard.dart
 class AdminDashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -385,7 +373,6 @@ class AdminDashboard extends StatelessWidget {
   }
 }
 
-// screens/user/user_dashboard.dart
 class UserDashboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -518,8 +505,11 @@ class UserDashboard extends StatelessWidget {
   }
 }
 
-// screens/admin/client_form_screen.dart
-class ClientFormScreen extends StatefulWidget {
+// Fixed section from screens.dart - around line 800-900
+// The issue was that the _ClientFormScreenState class was not properly closed
+// and the dispose method was orphaned outside the class
+
+class ClientFormScreen extends BaseFormScreen {
   final ClientModel? client;
 
   const ClientFormScreen({Key? key, this.client}) : super(key: key);
@@ -528,24 +518,38 @@ class ClientFormScreen extends StatefulWidget {
   State<ClientFormScreen> createState() => _ClientFormScreenState();
 }
 
-class _ClientFormScreenState extends State<ClientFormScreen> {
+class _ClientFormScreenState extends BaseFormScreenState<ClientFormScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _clientNameController = TextEditingController();
-  final _clientPhoneController = TextEditingController();
-  final _secondPhoneController = TextEditingController();
-  final _agentNameController = TextEditingController();
-  final _agentPhoneController = TextEditingController();
-  final _notesController = TextEditingController();
+  late final TextEditingController _clientNameController;
+  late final TextEditingController _clientPhoneController;
+  late final TextEditingController _secondPhoneController;
+  late final TextEditingController _agentNameController;
+  late final TextEditingController _agentPhoneController;
+  late final TextEditingController _notesController;
 
   PhoneCountry _phoneCountry = PhoneCountry.saudi;
   VisaType _visaType = VisaType.umrah;
   DateTime _entryDate = DateTime.now();
   List<File> _selectedImages = [];
-  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
+
+    _clientNameController = TextEditingController();
+    _clientPhoneController = TextEditingController();
+    _secondPhoneController = TextEditingController();
+    _agentNameController = TextEditingController();
+    _agentPhoneController = TextEditingController();
+    _notesController = TextEditingController();
+
+    registerController(_clientNameController);
+    registerController(_clientPhoneController);
+    registerController(_secondPhoneController);
+    registerController(_agentNameController);
+    registerController(_agentPhoneController);
+    registerController(_notesController);
+
     if (widget.client != null) {
       _populateFields();
     }
@@ -576,7 +580,7 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
         actions: [
           IconButton(
             icon: Icon(Icons.save),
-            onPressed: _isLoading ? null : _handleSave,
+            onPressed: isLoading ? null : _handleSave,
           ),
         ],
       ),
@@ -595,43 +599,36 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
               ),
               SizedBox(height: 16),
 
-              Row(
-                children: [
-                  Expanded(
-                    flex: 2,
-                    child: DropdownButtonFormField<PhoneCountry>(
-                      value: _phoneCountry,
-                      decoration: InputDecoration(
-                        labelText: 'الدولة',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: [
-                        DropdownMenuItem(
-                          value: PhoneCountry.saudi,
-                          child: Text('السعودية (+966)'),
-                        ),
-                        DropdownMenuItem(
-                          value: PhoneCountry.yemen,
-                          child: Text('اليمن (+967)'),
-                        ),
-                      ],
-                      onChanged: (value) {
-                        setState(() => _phoneCountry = value!);
-                      },
-                    ),
+              DropdownButtonFormField<PhoneCountry>(
+                value: _phoneCountry,
+                decoration: InputDecoration(
+                  labelText: 'الدولة *',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.flag),
+                ),
+                items: [
+                  DropdownMenuItem(
+                    value: PhoneCountry.saudi,
+                    child: Text('السعودية (+966)'),
                   ),
-                  SizedBox(width: 8),
-                  Expanded(
-                    flex: 3,
-                    child: CustomTextField(
-                      controller: _clientPhoneController,
-                      label: 'رقم العميل (اختياري)',
-                      icon: Icons.phone,
-                      keyboardType: TextInputType.phone,
-                      validator: (value) => ValidationUtils.validatePhone(value, _phoneCountry),
-                    ),
+                  DropdownMenuItem(
+                    value: PhoneCountry.yemen,
+                    child: Text('اليمن (+967)'),
                   ),
                 ],
+                onChanged: (value) {
+                  setState(() => _phoneCountry = value!);
+                },
+                validator: (value) => value == null ? 'اختر الدولة' : null,
+              ),
+              SizedBox(height: 16),
+
+              CustomTextField(
+                controller: _clientPhoneController,
+                label: 'رقم العميل الأساسي *',
+                icon: Icons.phone,
+                keyboardType: TextInputType.phone,
+                validator: (value) => ValidationUtils.validateClientPhone(value, _phoneCountry),
               ),
               SizedBox(height: 16),
 
@@ -640,7 +637,7 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
                 label: 'رقم إضافي (اختياري)',
                 icon: Icons.phone_android,
                 keyboardType: TextInputType.phone,
-                validator: (value) => ValidationUtils.validatePhone(value, _phoneCountry),
+                validator: (value) => ValidationUtils.validateSecondPhone(value, _phoneCountry),
               ),
               SizedBox(height: 16),
 
@@ -700,12 +697,12 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
               SizedBox(height: 24),
 
               ElevatedButton(
-                onPressed: _isLoading ? null : _handleSave,
+                onPressed: isLoading ? null : _handleSave,
                 style: ElevatedButton.styleFrom(
                   padding: EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
-                child: _isLoading
+                child: isLoading
                     ? CircularProgressIndicator(color: Colors.white)
                     : Text(
                   widget.client == null ? 'حفظ العميل' : 'تحديث العميل',
@@ -813,7 +810,7 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
 
   Future<void> _handleSave() async {
     if (_formKey.currentState!.validate()) {
-      setState(() => _isLoading = true);
+      setLoading(true);
 
       try {
         final authController = Provider.of<AuthController>(context, listen: false);
@@ -829,6 +826,7 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
         final client = ClientModel(
           id: widget.client?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
           clientName: _clientNameController.text,
+          username: _clientNameController.text, // Add username field
           clientPhone: _clientPhoneController.text,
           secondPhone: _secondPhoneController.text.isEmpty ? null : _secondPhoneController.text,
           phoneCountry: _phoneCountry,
@@ -856,20 +854,25 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
           await clientController.updateClient(client, _selectedImages);
         }
 
-        Navigator.pop(context, true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('تم حفظ العميل بنجاح')),
-        );
+        if (mounted) {
+          Navigator.pop(context, true);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('تم حفظ العميل بنجاح')),
+          );
+        }
       } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('خطأ في حفظ العميل: ${e.toString()}')),
-        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('خطأ في حفظ العميل: ${e.toString()}')),
+          );
+        }
       } finally {
-        setState(() => _isLoading = false);
+        setLoading(false);
       }
     }
   }
 
+  // FIXED: This dispose method should be inside the _ClientFormScreenState class
   @override
   void dispose() {
     _clientNameController.dispose();
@@ -880,9 +883,8 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
     _notesController.dispose();
     super.dispose();
   }
-}
+} // Properly close the _ClientFormScreenState class
 
-// screens/admin/client_management_screen.dart
 class ClientManagementScreen extends StatefulWidget {
   @override
   State<ClientManagementScreen> createState() => _ClientManagementScreenState();
@@ -957,8 +959,10 @@ class _ClientManagementScreenState extends State<ClientManagementScreen> {
                   itemCount: clientController.clients.length,
                   itemBuilder: (context, index) {
                     final client = clientController.clients[index];
+                    final createdByName = clientController.getUserNameById(client.createdBy);
                     return ClientCard(
                       client: client,
+                      createdByName: createdByName,
                       onEdit: () => Navigator.pushNamed(
                         context,
                         '/admin/edit_client',
@@ -981,23 +985,17 @@ class _ClientManagementScreenState extends State<ClientManagementScreen> {
   }
 
   void _showFilterBottomSheet() {
+    final clientController = Provider.of<ClientController>(context, listen: false);
     showModalBottomSheet(
       context: context,
-      builder: (context) => Container(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('مرشحات البحث', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            SizedBox(height: 16),
-            Text('قريباً سيتم إضافة مرشحات متقدمة'),
-            SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('إغلاق'),
-            ),
-          ],
-        ),
+      isScrollControlled: true,
+      builder: (context) => FilterBottomSheet(
+        currentFilter: clientController.currentFilter,
+        users: clientController.users,
+        onApplyFilter: (filter) {
+          final authController = Provider.of<AuthController>(context, listen: false);
+          clientController.applyFilter(filter, authController.currentUser!.id, isAdmin: true);
+        },
       ),
     );
   }
@@ -1058,7 +1056,6 @@ class _ClientManagementScreenState extends State<ClientManagementScreen> {
   }
 }
 
-// screens/user/user_client_form_screen.dart
 class UserClientFormScreen extends StatelessWidget {
   final ClientModel? client;
 
@@ -1070,7 +1067,6 @@ class UserClientFormScreen extends StatelessWidget {
   }
 }
 
-// screens/user/user_client_management_screen.dart
 class UserClientManagementScreen extends StatefulWidget {
   @override
   State<UserClientManagementScreen> createState() => _UserClientManagementScreenState();
@@ -1218,8 +1214,6 @@ class _UserClientManagementScreenState extends State<UserClientManagementScreen>
     super.dispose();
   }
 }
-
-// screens/admin/user_management_screen.dart
 class UserManagementScreen extends StatefulWidget {
   @override
   State<UserManagementScreen> createState() => _UserManagementScreenState();
@@ -1582,7 +1576,6 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   }
 }
 
-// screens/admin/user_form_screen.dart
 class UserFormScreen extends StatefulWidget {
   final UserModel? user;
 
@@ -1827,7 +1820,6 @@ class _UserFormScreenState extends State<UserFormScreen> {
   }
 }
 
-// screens/admin/user_clients_screen.dart
 class UserClientsScreen extends StatefulWidget {
   final UserModel user;
 
@@ -1914,7 +1906,6 @@ class _UserClientsScreenState extends State<UserClientsScreen> {
   }
 }
 
-// screens/admin/admin_notifications_screen.dart
 class AdminNotificationsScreen extends StatefulWidget {
   @override
   State<AdminNotificationsScreen> createState() => _AdminNotificationsScreenState();
@@ -2094,11 +2085,11 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> wit
 
   void _sendWhatsAppToUser(NotificationModel notification) async {
     try {
-      final userController = Provider.of<UserController>(context, listen: false);
-      final user = userController.users.firstWhere((u) => u.id == notification.targetUserId);
-
-      await Provider.of<NotificationController>(context, listen: false)
-          .sendWhatsAppToUser(user, notification.message);
+      final user = await DatabaseService.getUserById(notification.targetUserId);
+      if (user != null) {
+        await Provider.of<NotificationController>(context, listen: false)
+            .sendWhatsAppToUser(user, notification.message);
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('خطأ في إرسال الواتساب: ${e.toString()}')),
@@ -2113,7 +2104,6 @@ class _AdminNotificationsScreenState extends State<AdminNotificationsScreen> wit
   }
 }
 
-// screens/user/user_notifications_screen.dart
 class UserNotificationsScreen extends StatefulWidget {
   @override
   State<UserNotificationsScreen> createState() => _UserNotificationsScreenState();

@@ -1,54 +1,62 @@
 import 'dart:io';
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'error_handler.dart';
+import 'models.dart';
 
 class NetworkUtils {
   static final Connectivity _connectivity = Connectivity();
   static StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
   static bool _hasConnection = true;
   static final StreamController<bool> _connectionController = StreamController<bool>.broadcast();
+  static DateTime? _lastNetworkCheck;
+  static const Duration _networkCheckInterval = Duration(seconds: 30);
 
-  // Stream to listen to network changes
   static Stream<bool> get connectionStream => _connectionController.stream;
   static bool get hasConnection => _hasConnection;
 
-  /// Initialize network monitoring
   static Future<void> initialize() async {
     try {
-      // Check initial connectivity state
       await checkInternetConnection();
-
-      // Start monitoring connectivity changes
-      _connectivitySubscription = _connectivity.onConnectivityChanged.listen(
-        _onConnectivityChanged,
-        onError: (error) {
-          print('❌ Connectivity monitoring error: $error');
-        },
-      );
-
+      _startConnectivityMonitoring();
+      await _clearNetworkCache();
       print('✅ Network monitoring initialized');
     } catch (e) {
       print('❌ Failed to initialize network monitoring: $e');
     }
   }
 
-  /// Dispose network monitoring
-  static void dispose() {
-    _connectivitySubscription?.cancel();
-    _connectivitySubscription = null;
-    if (!_connectionController.isClosed) {
-      _connectionController.close();
+  static void _startConnectivityMonitoring() {
+    _connectivitySubscription = _connectivity.onConnectivityChanged.listen(
+      _onConnectivityChanged,
+      onError: (error) {
+        print('❌ Connectivity monitoring error: $error');
+        ErrorHandler.logError('Network monitoring', error);
+      },
+    );
+  }
+
+  static Future<void> _onConnectivityChanged(List<ConnectivityResult> results) async {
+    final hasInternet = await checkInternetConnection();
+
+    if (!hasInternet && _hasConnection) {
+      await _clearApplicationCacheOnDisconnect();
+    } else if (hasInternet && !_hasConnection) {
+      await _syncDataOnReconnect();
     }
   }
 
-  /// Check internet connection with actual network test
   static Future<bool> checkInternetConnection() async {
+    final now = DateTime.now();
+    if (_lastNetworkCheck != null &&
+        now.difference(_lastNetworkCheck!) < _networkCheckInterval) {
+      return _hasConnection;
+    }
+
     try {
-      // First check connectivity status
       final connectivityResults = await _connectivity.checkConnectivity();
 
       if (connectivityResults.contains(ConnectivityResult.none)) {
@@ -56,9 +64,9 @@ class NetworkUtils {
         return false;
       }
 
-      // Test actual internet connectivity
       final hasInternet = await _testInternetAccess();
       _updateConnectionStatus(hasInternet);
+      _lastNetworkCheck = now;
       return hasInternet;
 
     } catch (e) {
@@ -68,27 +76,25 @@ class NetworkUtils {
     }
   }
 
-  /// Test actual internet access by pinging reliable servers
   static Future<bool> _testInternetAccess() async {
     try {
-      // Test multiple reliable hosts
       final hosts = [
         'google.com',
         'firebase.google.com',
         'cloudflare.com',
-        '8.8.8.8', // Google DNS
+        '8.8.8.8',
       ];
 
       for (String host in hosts) {
         try {
-          final result = await InternetAddress.lookup(host)
-              .timeout(Duration(seconds: 5));
+          final result = await InternetAddress.lookup(host).timeout(
+            Duration(seconds: 5),
+          );
 
           if (result.isNotEmpty && result[0].rawAddress.isNotEmpty) {
             return true;
           }
         } catch (e) {
-          // Try next host
           continue;
         }
       }
@@ -99,402 +105,395 @@ class NetworkUtils {
     }
   }
 
-  /// Handle connectivity changes
-  static void _onConnectivityChanged(List<ConnectivityResult> results) async {
-    print('📶 Connectivity changed: $results');
-
-    if (results.contains(ConnectivityResult.none)) {
-      _updateConnectionStatus(false);
-    } else {
-      // Delay to allow network to stabilize
-      await Future.delayed(Duration(seconds: 2));
-      await checkInternetConnection();
-    }
-  }
-
-  /// Update connection status and notify listeners
   static void _updateConnectionStatus(bool hasConnection) {
     if (_hasConnection != hasConnection) {
       _hasConnection = hasConnection;
-      if (!_connectionController.isClosed) {
-        _connectionController.add(hasConnection);
+      _connectionController.add(hasConnection);
+      print('📶 Network status changed: ${hasConnection ? 'Connected' : 'Disconnected'}');
+    }
+  }
+
+  static Future<void> _clearNetworkCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final networkCacheKeys = prefs.getKeys().where((key) =>
+      key.startsWith('network_') ||
+          key.startsWith('api_cache_') ||
+          key.startsWith('last_sync_')
+      ).toList();
+
+      for (final key in networkCacheKeys) {
+        await prefs.remove(key);
       }
 
-      print(hasConnection ? '✅ Internet connected' : '❌ Internet disconnected');
-    }
-  }
-
-  /// Get current connectivity type
-  static Future<List<ConnectivityResult>> getConnectivityType() async {
-    try {
-      return await _connectivity.checkConnectivity();
+      CacheManager.clear();
+      print('✅ Network cache cleared');
     } catch (e) {
-      return [ConnectivityResult.none];
+      print('⚠️ Failed to clear network cache: $e');
     }
   }
 
-  /// Get connectivity type as Arabic string
-  static Future<String> getConnectivityTypeText() async {
-    final types = await getConnectivityType();
-    if (types.isEmpty || types.contains(ConnectivityResult.none)) {
-      return 'غير متصل';
-    }
-
-    // Return the first connection type
-    final type = types.first;
-    switch (type) {
-      case ConnectivityResult.wifi:
-        return 'واي فاي';
-      case ConnectivityResult.mobile:
-        return 'بيانات الجوال';
-      case ConnectivityResult.ethernet:
-        return 'إيثرنت';
-      case ConnectivityResult.bluetooth:
-        return 'بلوتوث';
-      case ConnectivityResult.vpn:
-        return 'في بي إن';
-      case ConnectivityResult.other:
-        return 'اتصال آخر';
-      case ConnectivityResult.none:
-      default:
-        return 'غير متصل';
-    }
-  }
-
-  /// Show no internet snackbar
-  static void showNoInternetSnackBar(BuildContext context, {Duration? duration}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.wifi_off, color: Colors.white, size: 20),
-            SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'لا يوجد اتصال بالإنترنت',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    'تحقق من اتصالك وحاول مرة أخرى',
-                    style: TextStyle(fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        backgroundColor: Colors.red.shade600,
-        duration: duration ?? Duration(seconds: 4),
-        behavior: SnackBarBehavior.floating,
-        action: SnackBarAction(
-          label: 'إعادة المحاولة',
-          textColor: Colors.white,
-          onPressed: () {
-            checkInternetConnection();
-          },
-        ),
-      ),
-    );
-  }
-
-  /// Show connection restored snackbar
-  static void showConnectionRestoredSnackBar(BuildContext context) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(Icons.wifi, color: Colors.white, size: 20),
-            SizedBox(width: 12),
-            Text('تم استعادة الاتصال بالإنترنت'),
-          ],
-        ),
-        backgroundColor: Colors.green.shade600,
-        duration: Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
-  /// Build no internet widget
-  static Widget buildNoInternetWidget({
-    VoidCallback? onRetry,
-    String? customMessage,
-  }) {
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.wifi_off,
-                size: 64,
-                color: Colors.grey.shade400,
-              ),
-            ),
-            SizedBox(height: 24),
-            Text(
-              'لا يوجد اتصال بالإنترنت',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.grey.shade700,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: 12),
-            Text(
-              customMessage ?? 'تحقق من اتصالك بالإنترنت وحاول مرة أخرى',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey.shade600,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: 32),
-            if (onRetry != null) ...[
-              ElevatedButton.icon(
-                onPressed: onRetry,
-                icon: Icon(Icons.refresh),
-                label: Text('إعادة المحاولة'),
-                style: ElevatedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-              SizedBox(height: 16),
-            ],
-            TextButton.icon(
-              onPressed: () async {
-                try {
-                  await _openNetworkSettings();
-                } catch (e) {
-                  print('Cannot open network settings: $e');
-                }
-              },
-              icon: Icon(Icons.settings, size: 18),
-              label: Text('إعدادات الشبكة'),
-              style: TextButton.styleFrom(
-                foregroundColor: Colors.grey.shade600,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// Open device network settings
-  static Future<void> _openNetworkSettings() async {
+  static Future<void> _clearApplicationCacheOnDisconnect() async {
     try {
-      if (Platform.isAndroid) {
-        await const MethodChannel('flutter/platform')
-            .invokeMethod('SystemNavigator.routeUpdated');
+      await ErrorHandler.clearApplicationCache();
+      CacheManager.clear();
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('last_disconnect_cache_cleared', true);
+      await prefs.setInt('last_disconnect_time', DateTime.now().millisecondsSinceEpoch);
+
+      print('✅ Application cache cleared on network disconnect');
+    } catch (e) {
+      print('❌ Failed to clear cache on disconnect: $e');
+    }
+  }
+
+  static Future<void> _syncDataOnReconnect() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final lastDisconnectTime = prefs.getInt('last_disconnect_time');
+
+      if (lastDisconnectTime != null) {
+        final disconnectDuration = DateTime.now().millisecondsSinceEpoch - lastDisconnectTime;
+
+        if (disconnectDuration > 300000) {
+          await ErrorHandler.clearApplicationCache();
+          CacheManager.clear();
+        }
       }
+
+      await prefs.remove('last_disconnect_cache_cleared');
+      await prefs.remove('last_disconnect_time');
+
+      print('✅ Data sync completed on reconnect');
     } catch (e) {
-      // Settings opening not supported
+      print('❌ Failed to sync data on reconnect: $e');
     }
   }
 
-  /// Execute network-dependent operation with automatic retry
-  static Future<T?> executeWithNetworkCheck<T>(
+  static Future<void> forceClearAllCaches() async {
+    try {
+      CacheManager.clear();
+      await ErrorHandler.clearApplicationCache();
+      await _clearNetworkCache();
+
+      final prefs = await SharedPreferences.getInstance();
+      final allKeys = prefs.getKeys().toList();
+
+      for (final key in allKeys) {
+        if (key.startsWith('cache_') ||
+            key.startsWith('temp_') ||
+            key.startsWith('last_') ||
+            key.startsWith('sync_') ||
+            key.startsWith('api_')) {
+          await prefs.remove(key);
+        }
+      }
+
+      print('✅ All caches forcefully cleared');
+    } catch (e) {
+      print('❌ Failed to force clear caches: $e');
+      throw Exception('فشل في مسح جميع ذاكرة التخزين المؤقت');
+    }
+  }
+
+  static void dispose() {
+    _connectivitySubscription?.cancel();
+    _connectivitySubscription = null;
+    if (!_connectionController.isClosed) {
+      _connectionController.close();
+    }
+    print('✅ Network monitoring disposed');
+  }
+
+  static Future<T> executeWithRetry<T>(
       Future<T> Function() operation, {
-        BuildContext? context,
         int maxRetries = 3,
         Duration retryDelay = const Duration(seconds: 2),
-        bool showSnackBar = true,
+        bool clearCacheOnRetry = true,
       }) async {
     int attempts = 0;
 
     while (attempts < maxRetries) {
       try {
-        // Check network connection
-        final hasInternet = await checkInternetConnection();
-
-        if (!hasInternet) {
-          if (context != null && showSnackBar) {
-            showNoInternetSnackBar(context);
-          }
-          return null;
+        if (attempts > 0 && clearCacheOnRetry) {
+          await forceClearAllCaches();
         }
 
-        // Execute operation
+        final hasConnection = await checkInternetConnection();
+        if (!hasConnection) {
+          throw Exception('لا يوجد اتصال بالإنترنت');
+        }
+
         return await operation();
 
       } catch (e) {
         attempts++;
 
         if (attempts >= maxRetries) {
-          if (context != null) {
-            ErrorHandler.showErrorSnackBar(context, e);
-          }
           rethrow;
         }
 
-        // Wait before retry
-        await Future.delayed(retryDelay);
+        print('⚠️ Operation failed (attempt $attempts/$maxRetries): $e');
+        await Future.delayed(retryDelay * attempts);
       }
     }
 
-    return null;
+    throw Exception('فشل في تنفيذ العملية بعد $maxRetries محاولات');
   }
 }
 
-/// Network monitoring mixin for widgets
-mixin NetworkMonitorMixin<T extends StatefulWidget> on State<T> {
-  StreamSubscription<bool>? _networkSubscription;
-  bool _wasOffline = false;
+abstract class NetworkAwareWidget extends StatefulWidget {
+  const NetworkAwareWidget({Key? key}) : super(key: key);
+}
+
+abstract class NetworkAwareState<T extends NetworkAwareWidget> extends State<T> {
+  late StreamSubscription<bool> _networkSubscription;
+  bool _isConnected = true;
 
   @override
   void initState() {
     super.initState();
-    _startNetworkMonitoring();
+    _isConnected = NetworkUtils.hasConnection;
+    _networkSubscription = NetworkUtils.connectionStream.listen(_onNetworkChanged);
   }
 
   @override
   void dispose() {
-    _networkSubscription?.cancel();
+    _networkSubscription.cancel();
     super.dispose();
   }
 
-  void _startNetworkMonitoring() {
-    _networkSubscription = NetworkUtils.connectionStream.listen((hasConnection) {
-      if (mounted) {
-        if (!hasConnection) {
-          _wasOffline = true;
-          onNetworkDisconnected();
-        } else if (_wasOffline) {
-          _wasOffline = false;
-          onNetworkReconnected();
-        }
+  void _onNetworkChanged(bool isConnected) {
+    if (mounted) {
+      setState(() {
+        _isConnected = isConnected;
+      });
+
+      if (isConnected) {
+        onNetworkRestored();
+      } else {
+        onNetworkDisconnected();
       }
-    });
+    }
   }
 
-  /// Override this method to handle network disconnection
   void onNetworkDisconnected() {
     if (mounted) {
-      NetworkUtils.showNoInternetSnackBar(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.wifi_off, color: Colors.white),
+              SizedBox(width: 8),
+              Text('انقطع الاتصال بالإنترنت'),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 5),
+        ),
+      );
     }
   }
 
-  /// Override this method to handle network reconnection
-  void onNetworkReconnected() {
-    if (mounted) {
-      NetworkUtils.showConnectionRestoredSnackBar(context);
-      onNetworkRestored();
-    }
-  }
-
-  /// Override this method to refresh data when network is restored
   void onNetworkRestored() {
-    // Override in subclasses to refresh data
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.wifi, color: Colors.white),
+              SizedBox(width: 8),
+              Text('تم استعادة الاتصال بالإنترنت'),
+            ],
+          ),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  bool get isConnected => _isConnected;
+
+  Widget buildNetworkAwareBody();
+
+  @override
+  Widget build(BuildContext context) {
+    return buildNetworkAwareBody();
   }
 }
 
-/// Wrapper widget for network-dependent operations
 class NetworkWrapper extends StatefulWidget {
   final Widget child;
+  final bool showOfflineMessage;
   final Future<void> Function()? onRetry;
   final String? customMessage;
-  final bool showOfflineMessage;
 
   const NetworkWrapper({
     Key? key,
     required this.child,
+    this.showOfflineMessage = true,
     this.onRetry,
     this.customMessage,
-    this.showOfflineMessage = true,
   }) : super(key: key);
 
   @override
   State<NetworkWrapper> createState() => _NetworkWrapperState();
 }
 
-class _NetworkWrapperState extends State<NetworkWrapper> with NetworkMonitorMixin {
-  bool _isChecking = false;
+class _NetworkWrapperState extends State<NetworkWrapper> {
+  late StreamSubscription<bool> _networkSubscription;
+  bool _isConnected = true;
 
   @override
   void initState() {
     super.initState();
-    _checkInitialConnection();
+    _isConnected = NetworkUtils.hasConnection;
+    _networkSubscription = NetworkUtils.connectionStream.listen(_onNetworkChanged);
   }
 
-  Future<void> _checkInitialConnection() async {
-    setState(() => _isChecking = true);
-    await NetworkUtils.checkInternetConnection();
+  @override
+  void dispose() {
+    _networkSubscription.cancel();
+    super.dispose();
+  }
+
+  void _onNetworkChanged(bool isConnected) {
     if (mounted) {
-      setState(() => _isChecking = false);
+      setState(() {
+        _isConnected = isConnected;
+      });
+
+      if (isConnected) {
+        onNetworkRestored();
+      } else {
+        onNetworkDisconnected();
+      }
+    }
+  }
+
+  void onNetworkDisconnected() {
+    if (widget.showOfflineMessage && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.wifi_off, color: Colors.white),
+              SizedBox(width: 8),
+              Text('انقطع الاتصال بالإنترنت'),
+            ],
+          ),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 5),
+        ),
+      );
+    }
+  }
+
+  void onNetworkRestored() async {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.wifi, color: Colors.white),
+              SizedBox(width: 8),
+              Text('تم استعادة الاتصال بالإنترنت'),
+            ],
+          ),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      if (widget.onRetry != null) {
+        await widget.onRetry!();
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isChecking) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text(
-              'جاري فحص الاتصال...',
-              style: TextStyle(color: Colors.grey),
-            ),
-          ],
-        ),
-      );
+    if (!_isConnected && widget.showOfflineMessage) {
+      return _buildOfflineWidget();
     }
-
-    if (!NetworkUtils.hasConnection && widget.showOfflineMessage) {
-      return NetworkUtils.buildNoInternetWidget(
-        onRetry: () async {
-          await _checkInitialConnection();
-          if (NetworkUtils.hasConnection && widget.onRetry != null) {
-            await widget.onRetry!();
-          }
-        },
-        customMessage: widget.customMessage,
-      );
-    }
-
     return widget.child;
   }
 
-  @override
-  void onNetworkDisconnected() {
-    if (widget.showOfflineMessage) {
-      super.onNetworkDisconnected();
-    }
-  }
-
-  @override
-  void onNetworkRestored() async {
-    super.onNetworkRestored();
-    if (widget.onRetry != null) {
-      await widget.onRetry!();
-    }
+  Widget _buildOfflineWidget() {
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.wifi_off,
+                size: 100,
+                color: Colors.grey,
+              ),
+              SizedBox(height: 20),
+              Text(
+                widget.customMessage ?? 'لا يوجد اتصال بالإنترنت',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 10),
+              Text(
+                'تحقق من اتصالك بالإنترنت وحاول مرة أخرى',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[600],
+                ),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: 30),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  await NetworkUtils.checkInternetConnection();
+                  if (widget.onRetry != null) {
+                    await widget.onRetry!();
+                  }
+                },
+                icon: Icon(Icons.refresh),
+                label: Text('إعادة المحاولة'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                ),
+              ),
+              SizedBox(height: 10),
+              TextButton(
+                onPressed: () async {
+                  await NetworkUtils.forceClearAllCaches();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('تم مسح جميع ذاكرة التخزين المؤقت')),
+                    );
+                  }
+                },
+                child: Text('مسح ذاكرة التخزين المؤقت'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
-/// Network-aware Future Builder
 class NetworkFutureBuilder<T> extends StatelessWidget {
   final Future<T> future;
   final AsyncWidgetBuilder<T> builder;
   final WidgetBuilder? loadingBuilder;
   final Widget Function(BuildContext, Object)? errorBuilder;
+  final bool clearCacheOnError;
 
   const NetworkFutureBuilder({
     Key? key,
@@ -502,6 +501,7 @@ class NetworkFutureBuilder<T> extends StatelessWidget {
     required this.builder,
     this.loadingBuilder,
     this.errorBuilder,
+    this.clearCacheOnError = true,
   }) : super(key: key);
 
   @override
@@ -516,6 +516,12 @@ class NetworkFutureBuilder<T> extends StatelessWidget {
           }
 
           if (snapshot.hasError) {
+            if (clearCacheOnError) {
+              NetworkUtils.forceClearAllCaches().catchError((e) {
+                print('Failed to clear cache on error: $e');
+              });
+            }
+
             return errorBuilder?.call(context, snapshot.error!) ??
                 Center(
                   child: Column(
@@ -526,6 +532,16 @@ class NetworkFutureBuilder<T> extends StatelessWidget {
                       Text(
                         ErrorHandler.getArabicErrorMessage(snapshot.error),
                         textAlign: TextAlign.center,
+                      ),
+                      SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: () async {
+                          await NetworkUtils.forceClearAllCaches();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('تم مسح ذاكرة التخزين المؤقت')),
+                          );
+                        },
+                        child: Text('مسح ذاكرة التخزين المؤقت'),
                       ),
                     ],
                   ),

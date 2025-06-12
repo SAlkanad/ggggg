@@ -3,18 +3,20 @@ import 'models.dart';
 import 'services.dart';
 import 'core.dart';
 import 'dart:io';
-
+import 'settings_screens.dart';
 class AuthController extends ChangeNotifier {
   UserModel? _currentUser;
   bool _isLoading = false;
   bool _rememberMe = false;
   bool _biometricEnabled = false;
+  bool _biometricAvailable = false;
 
   UserModel? get currentUser => _currentUser;
   bool get isLoading => _isLoading;
   bool get isLoggedIn => _currentUser != null;
   bool get rememberMe => _rememberMe;
   bool get biometricEnabled => _biometricEnabled;
+  bool get biometricAvailable => _biometricAvailable;
 
   set rememberMe(bool value) {
     _rememberMe = value;
@@ -26,6 +28,8 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<void> _initializeAuth() async {
+    await _checkBiometricAvailability();
+    
     final autoLoginUser = await AuthService.checkAutoLogin();
     if (autoLoginUser != null) {
       _currentUser = autoLoginUser;
@@ -34,6 +38,11 @@ class AuthController extends ChangeNotifier {
     }
     
     _rememberMe = await AuthService.shouldAutoLogin();
+    notifyListeners();
+  }
+
+  Future<void> _checkBiometricAvailability() async {
+    _biometricAvailable = await BiometricService.isBiometricAvailable();
     notifyListeners();
   }
 
@@ -59,6 +68,8 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<bool> loginWithBiometric(String username) async {
+    if (!_biometricAvailable) return false;
+
     _isLoading = true;
     notifyListeners();
 
@@ -82,7 +93,7 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<void> enableBiometric() async {
-    if (_currentUser != null) {
+    if (_currentUser != null && _biometricAvailable) {
       await BiometricService.enableBiometric(_currentUser!.id);
       _biometricEnabled = true;
       notifyListeners();
@@ -98,7 +109,9 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<bool> checkBiometricAvailability() async {
-    return await BiometricService.isBiometricAvailable();
+    _biometricAvailable = await BiometricService.isBiometricAvailable();
+    notifyListeners();
+    return _biometricAvailable;
   }
 
   Future<void> logout() async {
@@ -117,6 +130,7 @@ class ClientController extends ChangeNotifier {
   List<ClientModel> _clients = [];
   List<ClientModel> _filteredClients = [];
   List<UserModel> _users = [];
+  Map<String, UserModel> _userCache = {};
   bool _isLoading = false;
   ClientFilter _currentFilter = ClientFilter();
 
@@ -135,6 +149,7 @@ class ClientController extends ChangeNotifier {
       if (isAdmin) {
         _clients = await DatabaseService.getAllClients();
         _users = await DatabaseService.getAllUsers();
+        _buildUserCache();
       } else {
         _clients = await DatabaseService.getClientsByUser(userId);
       }
@@ -166,6 +181,13 @@ class ClientController extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
       throw e;
+    }
+  }
+
+  void _buildUserCache() {
+    _userCache.clear();
+    for (final user in _users) {
+      _userCache[user.id] = user;
     }
   }
 
@@ -233,6 +255,7 @@ class ClientController extends ChangeNotifier {
         await _applyCurrentFilter(authController);
       }
       
+      await DatabaseService.clearCache();
       notifyListeners();
     } catch (e) {
       throw e;
@@ -253,6 +276,7 @@ class ClientController extends ChangeNotifier {
         _filteredClients[filteredIndex] = client;
       }
       
+      await DatabaseService.clearCache();
       notifyListeners();
     } catch (e) {
       throw e;
@@ -279,6 +303,7 @@ class ClientController extends ChangeNotifier {
         );
       }
       
+      await DatabaseService.clearCache();
       notifyListeners();
     } catch (e) {
       throw e;
@@ -292,6 +317,7 @@ class ClientController extends ChangeNotifier {
       _clients.removeWhere((client) => client.id == clientId);
       _filteredClients.removeWhere((client) => client.id == clientId);
       
+      await DatabaseService.clearCache();
       notifyListeners();
     } catch (e) {
       throw e;
@@ -299,6 +325,7 @@ class ClientController extends ChangeNotifier {
   }
 
   Future<void> refreshClients(String userId, {bool isAdmin = false}) async {
+    await StatusUpdateService.forceUpdateAllStatuses();
     await loadClients(userId, isAdmin: isAdmin);
   }
 
@@ -318,6 +345,9 @@ class ClientController extends ChangeNotifier {
 
   String? getUserNameById(String userId) {
     try {
+      if (_userCache.containsKey(userId)) {
+        return _userCache[userId]!.name;
+      }
       final user = _users.firstWhere((u) => u.id == userId);
       return user.name;
     } catch (e) {
@@ -358,6 +388,7 @@ class UserController extends ChangeNotifier {
     try {
       await DatabaseService.saveUser(user);
       _users.insert(0, user);
+      await DatabaseService.clearCache();
       notifyListeners();
     } catch (e) {
       throw e;
@@ -370,6 +401,7 @@ class UserController extends ChangeNotifier {
       final index = _users.indexWhere((u) => u.id == user.id);
       if (index != -1) {
         _users[index] = user;
+        await DatabaseService.clearCache();
         notifyListeners();
       }
     } catch (e) {
@@ -381,6 +413,7 @@ class UserController extends ChangeNotifier {
     try {
       await DatabaseService.deleteUser(userId);
       _users.removeWhere((user) => user.id == userId);
+      await DatabaseService.clearCache();
       notifyListeners();
     } catch (e) {
       throw e;
@@ -407,6 +440,7 @@ class UserController extends ChangeNotifier {
           createdAt: _users[index].createdAt,
           createdBy: _users[index].createdBy,
         );
+        await DatabaseService.clearCache();
         notifyListeners();
       }
     } catch (e) {
@@ -434,6 +468,7 @@ class UserController extends ChangeNotifier {
           createdAt: _users[index].createdAt,
           createdBy: _users[index].createdBy,
         );
+        await DatabaseService.clearCache();
         notifyListeners();
       }
     } catch (e) {
@@ -461,6 +496,7 @@ class UserController extends ChangeNotifier {
           createdAt: _users[index].createdAt,
           createdBy: _users[index].createdBy,
         );
+        await DatabaseService.clearCache();
         notifyListeners();
       }
     } catch (e) {
@@ -745,6 +781,8 @@ class SettingsController extends ChangeNotifier {
     try {
       await DatabaseService.saveAdminSettings(settings);
       _adminSettings = settings;
+      await DatabaseService.clearCache();
+      await StatusUpdateService.forceUpdateAllStatuses();
       notifyListeners();
     } catch (e) {
       throw e;
@@ -755,6 +793,7 @@ class SettingsController extends ChangeNotifier {
     try {
       await DatabaseService.saveUserSettings(userId, settings);
       _userSettings = settings;
+      await DatabaseService.clearCache();
       notifyListeners();
     } catch (e) {
       throw e;
@@ -765,6 +804,8 @@ class SettingsController extends ChangeNotifier {
     try {
       _adminSettings['clientStatusSettings'] = settings.toMap();
       await DatabaseService.saveAdminSettings(_adminSettings);
+      await DatabaseService.clearCache();
+      await StatusUpdateService.forceUpdateAllStatuses();
       notifyListeners();
     } catch (e) {
       throw e;
@@ -784,6 +825,7 @@ class SettingsController extends ChangeNotifier {
         'thirdTier': settings.userTiers[2].toMap(),
       };
       await DatabaseService.saveAdminSettings(_adminSettings);
+      await DatabaseService.clearCache();
       notifyListeners();
     } catch (e) {
       throw e;
@@ -797,9 +839,10 @@ class SettingsController extends ChangeNotifier {
         'userMessage': userMessage,
       };
       await DatabaseService.saveAdminSettings(_adminSettings);
+      await DatabaseService.clearCache();
       notifyListeners();
     } catch (e) {
-      throw e;
+      rethrow;
     }
   }
 
@@ -810,9 +853,10 @@ class SettingsController extends ChangeNotifier {
         'showOnlyMyNotifications': showOnlyMyNotifications,
       };
       await DatabaseService.saveAdminSettings(_adminSettings);
+      await DatabaseService.clearCache();
       notifyListeners();
     } catch (e) {
-      throw e;
+      rethrow;
     }
   }
 }

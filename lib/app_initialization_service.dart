@@ -1,14 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'services.dart';
 import 'firebase_options.dart';
 import 'network_utils.dart';
+import 'models.dart';
 
 class AppInitializationService {
   static final FlutterLocalNotificationsPlugin _localNotifications =
@@ -16,25 +19,14 @@ class AppInitializationService {
 
   static Future<void> initialize() async {
     try {
-      // Initialize Firebase
       await _initializeFirebase();
-
-      // Initialize notifications
       await _initializeNotifications();
-
-      // Initialize timezone
-      tz.initializeTimeZones();
-
-      // Initialize network monitoring
+      _initializeTimezone();
       await _initializeNetworkMonitoring();
-
-      // Request permissions
       await _requestPermissions();
-
-      // Create default admin if needed
-      await AuthService.createDefaultAdmin();
-
-      // Start background services
+      await _initializeBiometrics();
+      await _ensureDefaultAdmin();
+      await _initializeCache();
       _startBackgroundServices();
 
       print('✅ App initialization completed successfully');
@@ -50,7 +42,6 @@ class AppInitializationService {
       options: DefaultFirebaseOptions.currentPlatform,
     );
 
-    // Initialize Crashlytics
     FlutterError.onError = (errorDetails) {
       FirebaseCrashlytics.instance.recordFlutterFatalError(errorDetails);
     };
@@ -73,15 +64,18 @@ class AppInitializationService {
 
     await _localNotifications.initialize(
       initSettings,
-      onDidReceiveNotificationResponse: _onNotificationTapped,
+      onDidReceiveNotificationResponse: (NotificationResponse response) async {
+        print('Notification received: ${response.payload}');
+      },
     );
 
-    print('✅ Local notifications initialized');
+    print('✅ Notifications initialized');
   }
 
-  static void _onNotificationTapped(NotificationResponse response) {
-    print('Notification tapped: ${response.payload}');
-    // Handle notification tap
+  static void _initializeTimezone() {
+    tz.initializeTimeZones();
+    tz.setLocalLocation(tz.getLocation('Asia/Riyadh'));
+    print('✅ Timezone initialized');
   }
 
   static Future<void> _initializeNetworkMonitoring() async {
@@ -90,99 +84,169 @@ class AppInitializationService {
   }
 
   static Future<void> _requestPermissions() async {
-    // Request camera permission
-    await Permission.camera.request();
+    final permissions = [
+      Permission.notification,
+      Permission.storage,
+      Permission.camera,
+      Permission.photos,
+    ];
 
-    // Request storage permissions
-    await Permission.storage.request();
-
-    // Request phone permission
-    await Permission.phone.request();
-
-    // Request notification permission
-    await Permission.notification.request();
+    for (final permission in permissions) {
+      final status = await permission.request();
+      print('Permission ${permission.toString()}: ${status.toString()}');
+    }
 
     print('✅ Permissions requested');
   }
 
+  static Future<void> _initializeBiometrics() async {
+    try {
+      final isAvailable = await BiometricService.isBiometricAvailable();
+      final availableTypes = await BiometricService.getAvailableBiometrics();
+
+      print('✅ Biometrics initialized - Available: $isAvailable, Types: $availableTypes');
+    } catch (e) {
+      print('⚠️ Biometrics initialization failed: $e');
+    }
+  }
+
+  static Future<void> _ensureDefaultAdmin() async {
+    try {
+      await AuthService.createDefaultAdmin();
+      print('✅ Default admin verified/created');
+    } catch (e) {
+      print('❌ Failed to create default admin: $e');
+      rethrow;
+    }
+  }
+
+  static Future<void> _initializeCache() async {
+    try {
+      CacheManager.clear();
+      CacheManager.clearExpired();
+
+      final prefs = await SharedPreferences.getInstance();
+      final keys = prefs.getKeys().where((key) => key.startsWith('cache_')).toList();
+      for (final key in keys) {
+        await prefs.remove(key);
+      }
+
+      print('✅ Cache initialized and cleared');
+    } catch (e) {
+      print('⚠️ Cache initialization warning: $e');
+    }
+  }
+
   static void _startBackgroundServices() {
-    BackgroundService.startBackgroundTasks();
     StatusUpdateService.startAutoStatusUpdate();
+    NotificationService.startScheduledNotifications();
+
     print('✅ Background services started');
   }
 
-  static Future<void> showLocalNotification({
-    required int id,
-    required String title,
-    required String body,
-    String? payload,
-  }) async {
-    const androidDetails = AndroidNotificationDetails(
-      'passenger_channel',
-      'Passenger Notifications',
-      channelDescription: 'Notifications for passenger visa expiry',
-      importance: Importance.high,
-      priority: Priority.high,
-      showWhen: true,
-    );
+  static Future<void> dispose() async {
+    try {
+      StatusUpdateService.stopAutoStatusUpdate();
+      NotificationService.stopScheduledNotifications();
+      NetworkUtils.dispose();
+      CacheManager.clear();
 
-    const iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-    );
+      print('✅ App cleanup completed');
+    } catch (e) {
+      print('⚠️ App cleanup warning: $e');
+    }
+  }
+}
 
-    const notificationDetails = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
+class NotificationService {
+  static Timer? _notificationTimer;
+  static bool _isRunning = false;
 
-    await _localNotifications.show(
-      id,
-      title,
-      body,
-      notificationDetails,
-      payload: payload,
-    );
+  static void startScheduledNotifications() {
+    if (_isRunning) return;
+
+    _isRunning = true;
+    _notificationTimer = Timer.periodic(Duration(minutes: 30), (timer) async {
+      try {
+        await _processScheduledNotifications();
+      } catch (e) {
+        print('❌ Scheduled notifications failed: $e');
+      }
+    });
+
+    print('✅ Scheduled notifications started');
   }
 
-  static Future<void> scheduleLocalNotification({
-    required int id,
-    required String title,
-    required String body,
-    required DateTime scheduledDate,
-    String? payload,
-  }) async {
-    const androidDetails = AndroidNotificationDetails(
-      'passenger_channel',
-      'Passenger Notifications',
-      channelDescription: 'Notifications for passenger visa expiry',
-      importance: Importance.high,
-      priority: Priority.high,
-    );
+  static void stopScheduledNotifications() {
+    _notificationTimer?.cancel();
+    _notificationTimer = null;
+    _isRunning = false;
 
-    const iosDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-    );
+    print('✅ Scheduled notifications stopped');
+  }
 
-    const notificationDetails = NotificationDetails(
-      android: androidDetails,
-      iOS: iosDetails,
-    );
+  static Future<void> _processScheduledNotifications() async {
+    try {
+      final clients = await DatabaseService.getAllClients();
+      final settings = await DatabaseService.getAdminSettings();
+      final notificationSettings = NotificationSettings.fromMap(settings['notificationSettings'] ?? {});
 
-    // Fixed timezone scheduling - removed deprecated parameter
-    final scheduledTZ = tz.TZDateTime.from(scheduledDate, tz.local);
+      for (final client in clients) {
+        if (client.hasExited) continue;
 
-    await _localNotifications.zonedSchedule(
-      id,
-      title,
-      body,
-      scheduledTZ,
-      notificationDetails,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      payload: payload,
-    );
+        await _checkClientNotifications(client, notificationSettings);
+      }
+
+      print('✅ Scheduled notifications processed');
+    } catch (e) {
+      print('❌ Notification processing failed: $e');
+    }
+  }
+
+  static Future<void> _checkClientNotifications(
+      ClientModel client,
+      NotificationSettings settings
+      ) async {
+    for (final tier in settings.clientTiers) {
+      if (client.daysRemaining <= tier.days && client.daysRemaining > 0) {
+        final notification = NotificationModel(
+          id: '',
+          type: NotificationType.clientExpiring,
+          title: 'تنبيه انتهاء تأشيرة',
+          message: tier.message.replaceAll('{clientName}', client.clientName)
+              .replaceAll('{daysRemaining}', client.daysRemaining.toString()),
+          targetUserId: client.createdBy,
+          clientId: client.id,
+          priority: _getPriority(client.daysRemaining),
+          createdAt: DateTime.now(),
+        );
+
+        await DatabaseService.saveNotification(notification);
+        await _sendWhatsAppMessage(client, tier.message);
+      }
+    }
+  }
+
+  static NotificationPriority _getPriority(int daysRemaining) {
+    if (daysRemaining <= 1) return NotificationPriority.high;
+    if (daysRemaining <= 5) return NotificationPriority.medium;
+    return NotificationPriority.low;
+  }
+
+  static Future<void> _sendWhatsAppMessage(ClientModel client, String message) async {
+    try {
+      final formattedMessage = message
+          .replaceAll('{clientName}', client.clientName)
+          .replaceAll('{daysRemaining}', client.daysRemaining.toString());
+
+      await WhatsAppService.sendClientMessage(
+        phoneNumber: client.clientPhone,
+        country: client.phoneCountry,
+        message: formattedMessage,
+        clientName: client.clientName,
+      );
+    } catch (e) {
+      print('⚠️ WhatsApp message failed for ${client.clientName}: $e');
+    }
   }
 }

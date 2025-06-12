@@ -15,16 +15,13 @@ import 'error_handler.dart';
 import 'network_utils.dart';
 
 void main() async {
-  // Ensure Flutter binding is initialized
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Set preferred orientations (portrait only for this app)
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
 
-  // Set system UI overlay style
   SystemChrome.setSystemUIOverlayStyle(
     SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
@@ -35,19 +32,12 @@ void main() async {
   );
 
   try {
-    // Initialize the app using the initialization service
     await AppInitializationService.initialize();
-
     print('✅ App initialization completed successfully');
-
-    // Run the app
     runApp(PassengersApp());
-
   } catch (error, stackTrace) {
     print('❌ Critical initialization error: $error');
     print('Stack trace: $stackTrace');
-
-    // Run a minimal error app
     runApp(ErrorApp(error: error));
   }
 }
@@ -59,7 +49,7 @@ class PassengersApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(
           create: (_) => AuthController(),
-          lazy: false, // Initialize immediately
+          lazy: false,
         ),
         ChangeNotifierProvider(
           create: (_) => ClientController(),
@@ -79,35 +69,25 @@ class PassengersApp extends StatelessWidget {
           return MaterialApp(
             title: AppConstants.appName,
             debugShowCheckedModeBanner: false,
-
-            // Theme Configuration
             theme: AppTheme.lightTheme,
-
-            // Localization
             locale: Locale('ar', 'SA'),
             supportedLocales: [
               Locale('ar', 'SA'),
-              Locale('en', 'US'), // Fallback locale
+              Locale('en', 'US'),
             ],
             localizationsDelegates: [
               GlobalMaterialLocalizations.delegate,
               GlobalWidgetsLocalizations.delegate,
               GlobalCupertinoLocalizations.delegate,
             ],
-
-            // Text direction for RTL
             builder: (context, child) {
               return Directionality(
                 textDirection: TextDirection.rtl,
                 child: child ?? Container(),
               );
             },
-
-            // Navigation
             initialRoute: _getInitialRoute(authController),
             onGenerateRoute: AppRoutes.generateRoute,
-
-            // Error handling
             onUnknownRoute: (settings) {
               return MaterialPageRoute(
                 builder: (context) => NotFoundScreen(),
@@ -120,7 +100,6 @@ class PassengersApp extends StatelessWidget {
   }
 
   String _getInitialRoute(AuthController authController) {
-    // If user is logged in, navigate to appropriate dashboard
     if (authController.isLoggedIn) {
       final user = authController.currentUser!;
       switch (user.role) {
@@ -131,13 +110,10 @@ class PassengersApp extends StatelessWidget {
           return RouteConstants.userDashboard;
       }
     }
-
-    // Default to login screen
     return RouteConstants.login;
   }
 }
 
-// Error app to show when critical initialization fails
 class ErrorApp extends StatelessWidget {
   final dynamic error;
 
@@ -149,7 +125,7 @@ class ErrorApp extends StatelessWidget {
       title: 'خطأ في التطبيق',
       theme: ThemeData(
         primarySwatch: Colors.red,
-        fontFamily: 'Roboto', // Fallback font
+        fontFamily: 'Roboto',
       ),
       home: Scaffold(
         body: SafeArea(
@@ -185,7 +161,6 @@ class ErrorApp extends StatelessWidget {
                 SizedBox(height: 32),
                 ElevatedButton.icon(
                   onPressed: () {
-                    // Restart the app
                     SystemNavigator.pop();
                   },
                   icon: Icon(Icons.refresh),
@@ -199,7 +174,6 @@ class ErrorApp extends StatelessWidget {
                 SizedBox(height: 16),
                 TextButton(
                   onPressed: () {
-                    // Copy error to clipboard
                     Clipboard.setData(ClipboardData(text: error.toString()));
                   },
                   child: Text(
@@ -216,7 +190,6 @@ class ErrorApp extends StatelessWidget {
   }
 }
 
-// 404 Not Found Screen
 class NotFoundScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -275,7 +248,8 @@ class NotFoundScreen extends StatelessWidget {
   }
 }
 
-// App lifecycle observer for handling app state changes
+// Update the AppLifecycleObserver class in lib/main.dart
+
 class AppLifecycleObserver extends WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -284,28 +258,21 @@ class AppLifecycleObserver extends WidgetsBindingObserver {
     switch (state) {
       case AppLifecycleState.resumed:
         print('📱 App resumed');
-        // App is in foreground
         StatusUpdateService.startAutoStatusUpdate();
         BackgroundService.startBackgroundTasks();
         break;
-
       case AppLifecycleState.paused:
         print('📱 App paused');
-        // App is in background
         break;
-
       case AppLifecycleState.detached:
         print('📱 App detached');
-        // Clean up resources
         StatusUpdateService.stopAutoStatusUpdate();
         BackgroundService.stopBackgroundTasks();
         NetworkUtils.dispose();
         break;
-
       case AppLifecycleState.inactive:
         print('📱 App inactive');
         break;
-
       case AppLifecycleState.hidden:
         print('📱 App hidden');
         break;
@@ -313,7 +280,6 @@ class AppLifecycleObserver extends WidgetsBindingObserver {
   }
 }
 
-// Initialize app lifecycle observer
 class AppWithLifecycle extends StatefulWidget {
   final Widget child;
 
